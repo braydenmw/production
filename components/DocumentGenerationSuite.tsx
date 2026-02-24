@@ -50,6 +50,7 @@ const DocumentGenerationSuite: React.FC<DocumentGenerationSuiteProps> = ({
   const [rewriteHistory, setRewriteHistory] = useState<string[]>([]);
   const [rewriteHistoryIndex, setRewriteHistoryIndex] = useState(-1);
   const [showRedline, setShowRedline] = useState(false);
+  const [shortcutToast, setShortcutToast] = useState<string>('');
 
   // Calculate decision deadline once to avoid impure function calls during render
   const [decisionDeadline] = useState(() => new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString());
@@ -2055,17 +2056,25 @@ Adopt the above practices to strengthen trust, accelerate approvals, and improve
       if (isUndo && hasUndoRewrite) {
         event.preventDefault();
         applyHistoryStep(rewriteHistoryIndex - 1);
+        setShortcutToast('Undo rewrite');
       }
 
       if (isRedo && hasRedoRewrite) {
         event.preventDefault();
         applyHistoryStep(rewriteHistoryIndex + 1);
+        setShortcutToast('Redo rewrite');
       }
     };
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [selectedDocument, isGenerating, generatedBatch.length, hasUndoRewrite, hasRedoRewrite, rewriteHistoryIndex, rewriteHistory]);
+
+  useEffect(() => {
+    if (!shortcutToast) return;
+    const timeout = window.setTimeout(() => setShortcutToast(''), 1400);
+    return () => window.clearTimeout(timeout);
+  }, [shortcutToast]);
 
   const acceptRewrite = () => {
     if (!hasPendingRewrite) return;
@@ -2083,6 +2092,11 @@ Adopt the above practices to strengthen trust, accelerate approvals, and improve
 
   return (
     <div className="h-full bg-stone-50 p-6 overflow-y-auto">
+      {shortcutToast && (
+        <div className="fixed top-6 right-6 z-50 px-3 py-2 text-xs font-semibold text-blue-900 bg-blue-50 border border-blue-200 rounded-lg shadow-sm">
+          {shortcutToast}
+        </div>
+      )}
       <div className="max-w-6xl mx-auto space-y-6">
         
         {/* HEADER */}
