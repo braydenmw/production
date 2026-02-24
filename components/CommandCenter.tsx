@@ -541,190 +541,231 @@ const CommandCenter: React.FC<CommandCenterProps> = ({ onEnterPlatform, onOpenGl
 
             {/* BW CONSULTANT AI DEMO - Display Mode Only */}
             <section className="py-8 px-4 bg-white">
-                <div className="max-w-6xl mx-auto">
-                    {/* Header */}
-                    <div className="mb-3 flex items-center justify-between gap-3">
+                <style>{`@keyframes bwMsgIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}`}</style>
+                <div className="max-w-7xl mx-auto">
+                    <div className="mb-3 flex items-center justify-between">
                         <div>
                             <p className="text-[10px] font-semibold text-blue-600 uppercase tracking-wider mb-0.5">Meet Your AI Partner</p>
                             <h2 className="text-xl font-bold text-slate-900">BW Consultant AI</h2>
                         </div>
-                        <p className="text-xs text-slate-400 max-w-xs leading-relaxed hidden sm:block">
-                            A real scenario, automated for display. This is BW Consultant in action.
-                        </p>
+                        <p className="text-xs text-slate-400 max-w-xs leading-relaxed hidden sm:block">Automated display of a live session. Exact replica of the system.</p>
                     </div>
 
-                    {/* Demo Window — mirrors the real system design */}
-                    <div className="overflow-hidden border border-stone-200 shadow-lg flex flex-col" style={{ fontFamily: "'Söhne', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" }}>
+                    {/* Demo window — pixel-match to BWConsultantOS */}
+                    <div className="border border-stone-200 shadow-lg flex flex-col overflow-hidden" style={{ fontFamily: "'Söhne','Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif", height: '480px' }}>
 
-                        {/* Banner — exact match to BWConsultantOS */}
-                        <div
-                            className="px-6 py-4 flex items-center justify-between relative overflow-hidden"
-                            style={{
-                                backgroundImage: 'url(https://images.unsplash.com/photo-1677442136019-21780ecad995?w=1400&h=300&fit=crop&q=80)',
-                                backgroundSize: 'cover',
-                                backgroundPosition: 'center',
-                            }}
-                        >
+                        {/* Header banner — identical to BWConsultantOS */}
+                        <div className="px-6 py-4 flex items-center justify-between relative overflow-hidden flex-shrink-0"
+                            style={{ backgroundImage:'url(https://images.unsplash.com/photo-1677442136019-21780ecad995?w=1400&h=300&fit=crop&q=80)', backgroundSize:'cover', backgroundPosition:'center' }}>
                             <div className="absolute inset-0 bg-gradient-to-r from-blue-900/90 via-blue-800/80 to-blue-900/70" />
                             <div className="relative z-10 flex items-center gap-3">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
                                 <div>
-                                    <h1 className="text-base font-bold text-white">BW Consultant</h1>
-                                    <span className="text-blue-200 text-[11px]">Powered by NSIL Agentic Runtime • Case Study Builder</span>
+                                    <h1 className="text-xl font-bold text-white">BW Consultant</h1>
+                                    <span className="text-blue-200 text-xs">Powered by NSIL Agentic Runtime • Case Study Builder</span>
                                 </div>
-                                <span className="ml-2 px-2 py-0.5 bg-white/10 border border-white/20 text-white text-[9px] font-semibold">DEMO</span>
+                                <span className="ml-1 px-2 py-0.5 bg-white/10 border border-white/20 text-white text-[9px] font-semibold">DEMO</span>
                             </div>
-                            {/* Phase pills */}
                             <div className="relative z-10 hidden md:flex items-center gap-1.5">
-                                {(['Intake', 'Discovery', 'Analysis', 'Recommendations', 'Generation'] as const).map((phase, idx) => {
+                                {(['Intake','Discovery','Analysis','Recommendations','Generation'] as const).map((p, idx) => {
                                     const activeIdx = Math.min(4, Math.floor((demoChatStep / DEMO_MESSAGES.length) * 5));
                                     return (
-                                        <React.Fragment key={phase}>
-                                            {idx > 0 && <span className="text-blue-300/40 text-xs">›</span>}
-                                            <span className={`px-2.5 py-1 text-[11px] font-medium ${
-                                                idx === activeIdx ? 'bg-white text-blue-800' :
-                                                idx < activeIdx ? 'bg-blue-700/50 text-blue-100' :
-                                                'bg-blue-800/30 text-blue-300/60'
-                                            }`}>{phase}</span>
+                                        <React.Fragment key={p}>
+                                            {idx > 0 && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-blue-300/50"><polyline points="9 18 15 12 9 6"/></svg>}
+                                            <span className={`px-3 py-1.5 text-xs font-medium transition-all ${idx === activeIdx ? 'bg-white text-blue-800' : idx < activeIdx ? 'bg-blue-700/50 text-blue-100' : 'bg-blue-800/30 text-blue-300/70'}`}>{p}</span>
                                         </React.Fragment>
                                     );
                                 })}
                             </div>
+                            <button onClick={() => termsAccepted && onEnterPlatform?.()} className="relative z-10 ml-3 px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-sm font-medium flex items-center gap-2 border border-white/20 transition-all">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+                                Full Session
+                            </button>
                         </div>
 
-                        {/* Body: chat + sidebar */}
-                        <div className="flex bg-stone-50" style={{ minHeight: '280px' }}>
+                        {/* Main body: chat + right sidebar — flex-1 */}
+                        <div className="flex flex-1 overflow-hidden">
 
-                            {/* Chat column */}
-                            <div className="flex-1 overflow-y-auto p-5 space-y-4 border-r border-stone-200" style={{ maxHeight: '320px' }}>
-                                {/* Scenario label */}
-                                <div className="flex justify-center">
-                                    <span className="text-[10px] px-3 py-1 bg-white border border-stone-200 text-slate-400">Scenario: Cairns Regional Development Authority — Cold-Chain Logistics Hub, North Queensland</span>
-                                </div>
+                            {/* Chat panel */}
+                            <div className="flex-1 flex flex-col bg-stone-50 overflow-hidden">
+                                {/* Messages scroll area */}
+                                <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                                    <div className="flex justify-center">
+                                        <span className="text-[10px] px-3 py-1 bg-white border border-stone-200 text-slate-400">Scenario: Cairns Regional Development Authority — Cold-Chain Logistics Hub, North Queensland</span>
+                                    </div>
 
-                                {DEMO_MESSAGES.slice(0, demoChatStep).map((msg, i) => (
-                                    <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                        {msg.role === 'system' && (
-                                            <div className="max-w-[92%] px-3 py-2 bg-indigo-50 border border-indigo-200">
-                                                <p className="text-[10px] text-indigo-600 font-mono leading-relaxed">
-                                                    <span className="font-bold text-indigo-800">NSIL</span> &bull; {msg.text}
-                                                </p>
-                                            </div>
-                                        )}
-                                        {msg.role === 'user' && (
-                                            <div className="max-w-[70%] px-4 py-3 bg-blue-600 text-white text-xs leading-relaxed">
-                                                {msg.text}
-                                            </div>
-                                        )}
-                                        {msg.role === 'assistant' && (
-                                            <div className="max-w-[88%] px-4 py-3 bg-white border border-stone-200 text-stone-900 shadow-sm text-xs leading-relaxed">
-                                                <div className="flex items-center gap-1.5 mb-1.5">
-                                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
+                                    {DEMO_MESSAGES.slice(0, demoChatStep).map((msg, i) => (
+                                        <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                                            style={{ animation: i === demoChatStep - 1 ? 'bwMsgIn 0.25s ease-out' : 'none' }}>
+                                            {msg.role === 'system' && (
+                                                <div className="max-w-[85%] px-3 py-2 bg-indigo-50 border border-indigo-200">
+                                                    <p className="text-[11px] text-indigo-600 font-mono leading-relaxed">
+                                                        <span className="font-bold text-indigo-800">NSIL</span> &bull; {msg.text}
+                                                    </p>
+                                                </div>
+                                            )}
+                                            {msg.role === 'user' && (
+                                                <div className="max-w-[75%] px-4 py-3 bg-blue-600 text-white text-sm leading-relaxed">{msg.text}</div>
+                                            )}
+                                            {msg.role === 'assistant' && (
+                                                <div className="max-w-[85%] px-4 py-3 bg-white border border-stone-200 text-stone-900 shadow-sm text-sm leading-relaxed">
+                                                    <div className="flex items-center gap-1.5 mb-2">
+                                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
+                                                        <span className="text-[10px] font-semibold text-blue-600 uppercase tracking-wide">BW Consultant</span>
+                                                    </div>
+                                                    <p className="whitespace-pre-line text-stone-800">{msg.text}</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+
+                                    {demoTyping && (
+                                        <div className="flex justify-start" style={{ animation: 'bwMsgIn 0.2s ease-out' }}>
+                                            <div className="px-4 py-3 bg-white border border-stone-200 shadow-sm">
+                                                <div className="flex items-center gap-1.5 mb-2">
+                                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
                                                     <span className="text-[10px] font-semibold text-blue-600 uppercase tracking-wide">BW Consultant</span>
                                                 </div>
-                                                <p className="whitespace-pre-line text-stone-800">{msg.text}</p>
+                                                <div className="flex items-center gap-1">
+                                                    <div className="w-2 h-2 bg-stone-400 rounded-full animate-bounce" style={{ animationDelay:'0ms' }} />
+                                                    <div className="w-2 h-2 bg-stone-400 rounded-full animate-bounce" style={{ animationDelay:'150ms' }} />
+                                                    <div className="w-2 h-2 bg-stone-400 rounded-full animate-bounce" style={{ animationDelay:'300ms' }} />
+                                                </div>
                                             </div>
+                                        </div>
+                                    )}
+
+                                    {demoChatStep >= DEMO_MESSAGES.length && !demoTyping && (
+                                        <div className="flex items-center gap-3 pt-1" style={{ animation:'bwMsgIn 0.25s ease-out' }}>
+                                            <div className="flex items-center gap-1.5 text-xs text-slate-400">
+                                                <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />
+                                                Session complete — 5 documents queued
+                                            </div>
+                                            <button onClick={() => { setDemoChatStep(0); setDemoTyping(false); }}
+                                                className="text-xs px-3 py-1.5 border border-stone-300 text-slate-600 hover:bg-stone-100 transition-colors">
+                                                Replay
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Input bar replica */}
+                                <div className="p-4 border-t border-stone-200 bg-white flex-shrink-0">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2.5 bg-stone-100 border border-stone-300">
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-500"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                                        </div>
+                                        <div className="flex-1 border border-stone-300 px-4 py-2.5 text-sm text-slate-400 bg-stone-50 select-none">Type your response...</div>
+                                        <div className="px-5 py-2.5 bg-slate-200 text-slate-400 text-sm font-medium select-none flex items-center gap-2">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                                            Send
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Right sidebar — white, w-80, exact match to BWConsultantOS */}
+                            <div className="w-80 border-l border-stone-200 bg-white flex flex-col flex-shrink-0 overflow-y-auto">
+                                {/* Case Summary header */}
+                                <div className="p-4 border-b border-stone-200 bg-slate-50 flex-shrink-0">
+                                    <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-blue-600"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></svg>
+                                        Case Summary
+                                    </h2>
+                                    {/* Policy Pack */}
+                                    <div className={`mt-2 text-[11px] px-2 py-1 border transition-all duration-500 ${demoChatStep >= 2 ? 'text-blue-700 bg-blue-50 border-blue-200' : 'text-slate-400 bg-slate-50 border-slate-200'}`}>
+                                        Policy Pack: {demoChatStep >= 2 ? 'Asia-Pacific Advisory' : '—'}
+                                    </div>
+                                    {/* Readiness + skill + pilot row */}
+                                    <div className="mt-2 flex items-center gap-2 text-[11px]">
+                                        <span className="px-2 py-1 bg-blue-100 text-blue-700 border border-blue-200 font-semibold transition-all duration-500">
+                                            Readiness: {Math.min(100, Math.round((demoChatStep / DEMO_MESSAGES.length) * 73) + 27)}%
+                                        </span>
+                                        <span className="px-2 py-1 bg-slate-100 text-slate-600 border border-slate-200">Advanced</span>
+                                        <span className="px-2 py-1 bg-slate-100 text-slate-500 border border-slate-200">Pilot: Off</span>
+                                    </div>
+                                    {/* Consultant Gate */}
+                                    <div className="mt-2 border border-stone-200 bg-white px-2 py-1 text-[11px]">
+                                        <div className="flex items-center justify-between gap-2">
+                                            <span className="font-semibold text-slate-700">Consultant Gate</span>
+                                            <span className={`px-1.5 py-0.5 border text-[10px] font-semibold transition-all duration-500 ${demoChatStep >= 4 ? 'bg-green-50 text-green-700 border-green-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
+                                                {demoChatStep >= 4 ? 'READY' : 'BLOCKED'}
+                                            </span>
+                                        </div>
+                                        {demoChatStep < 4 && (
+                                            <ul className="mt-1 space-y-0.5">
+                                                {['Developer identity unverified', 'Financial model required', 'Anchor tenant not confirmed'].slice(0, demoChatStep >= 2 ? 2 : 3).map((g) => (
+                                                    <li key={g} className="text-[10px] text-slate-600">• {g}</li>
+                                                ))}
+                                            </ul>
                                         )}
                                     </div>
-                                ))}
-
-                                {/* Typing indicator */}
-                                {demoTyping && (
-                                    <div className="flex justify-start">
-                                        <div className="px-4 py-3 bg-white border border-stone-200 shadow-sm">
-                                            <div className="flex items-center gap-1.5 mb-1.5">
-                                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
-                                                <span className="text-[10px] font-semibold text-blue-600 uppercase tracking-wide">BW Consultant</span>
-                                            </div>
-                                            <div className="flex items-center gap-1">
-                                                <div className="w-1.5 h-1.5 bg-stone-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                                                <div className="w-1.5 h-1.5 bg-stone-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                                                <div className="w-1.5 h-1.5 bg-stone-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                                            </div>
+                                    {/* Critical Gaps */}
+                                    <div className="mt-2 bg-white border border-stone-200 px-2 py-1 text-[11px]">
+                                        <div className="flex items-center justify-between gap-2">
+                                            <span className={`font-semibold ${demoChatStep >= DEMO_MESSAGES.length ? 'text-green-700' : 'text-amber-700'}`}>
+                                                Critical Gaps: {Math.max(0, 6 - Math.floor((demoChatStep / DEMO_MESSAGES.length) * 6))}
+                                            </span>
                                         </div>
-                                    </div>
-                                )}
-
-                                {/* End state */}
-                                {demoChatStep >= DEMO_MESSAGES.length && !demoTyping && (
-                                    <div className="flex items-center gap-3 pt-1">
-                                        <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
-                                            <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />
-                                            Session complete — 5 documents queued
-                                        </div>
-                                        <button
-                                            onClick={() => { setDemoChatStep(0); setDemoTyping(false); }}
-                                            className="text-[10px] px-3 py-1 border border-stone-300 text-slate-600 hover:bg-stone-100 transition-colors"
-                                        >
-                                            Replay
-                                        </button>
-                                        <button
-                                            onClick={() => termsAccepted && onEnterPlatform?.()}
-                                            className="text-[10px] px-3 py-1 bg-blue-600 text-white hover:bg-blue-700 transition-colors font-medium"
-                                        >
-                                            Launch BW Consultant →
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Right status sidebar — dark panel */}
-                            <div className="w-52 flex-shrink-0 bg-slate-950 border-l border-slate-800 p-4 flex flex-col gap-4">
-                                {/* Readiness */}
-                                <div>
-                                    <p className="text-[9px] text-slate-500 uppercase tracking-widest mb-1">Case Readiness</p>
-                                    <span className="text-2xl font-bold text-white tabular-nums">{Math.min(100, Math.round((demoChatStep / DEMO_MESSAGES.length) * 73) + 27)}%</span>
-                                    <div className="mt-1.5 w-full h-1 bg-slate-800">
-                                        <div
-                                            className="h-full bg-blue-500 transition-all duration-700"
-                                            style={{ width: `${Math.min(100, Math.round((demoChatStep / DEMO_MESSAGES.length) * 73) + 27)}%` }}
-                                        />
+                                        {demoChatStep < DEMO_MESSAGES.length && (
+                                            <p className="mt-0.5 text-[10px] text-slate-600">
+                                                Next: HIGH — {demoChatStep < 2 ? 'Jurisdiction & sector' : demoChatStep < 4 ? 'Counterparty verification' : 'Anchor tenant evidence'}
+                                            </p>
+                                        )}
                                     </div>
                                 </div>
 
-                                {/* NSIL signals */}
-                                <div>
-                                    <p className="text-[9px] text-slate-500 uppercase tracking-widest mb-2">NSIL Signals</p>
+                                {/* Documents section */}
+                                <div className="p-4 border-b border-stone-200 flex-shrink-0">
+                                    <h3 className="text-xs font-bold text-slate-700 mb-2 uppercase tracking-wide">Documents Queued</h3>
+                                    <div className="space-y-1.5">
+                                        {[
+                                            { name: 'NAIF Submission Brief', ready: demoChatStep >= 5 },
+                                            { name: 'Investment Prospectus', ready: demoChatStep >= 5 },
+                                            { name: 'Risk Register', ready: demoChatStep >= 5 },
+                                            { name: 'Stakeholder Plan', ready: demoChatStep >= 5 },
+                                            { name: 'LOI Template', ready: demoChatStep >= 5 },
+                                        ].map(({ name, ready }) => (
+                                            <div key={name} className={`flex items-center justify-between px-2 py-1 border text-[11px] transition-all duration-500 ${ready ? 'border-emerald-200 bg-emerald-50' : 'border-stone-200 bg-white'}`}>
+                                                <span className={ready ? 'text-emerald-700 font-medium' : 'text-slate-500'}>{name}</span>
+                                                <span className={`text-[9px] px-1.5 py-0.5 border ${ready ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-stone-100 text-stone-500 border-stone-200'}`}>
+                                                    {ready ? 'READY' : 'PENDING'}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    {demoChatStep >= DEMO_MESSAGES.length && (
+                                        <button onClick={() => termsAccepted && onEnterPlatform?.()}
+                                            className="mt-3 w-full px-4 py-2 bg-blue-600 text-white text-xs font-medium hover:bg-blue-700 transition-colors">
+                                            Generate All Documents →
+                                        </button>
+                                    )}
+                                </div>
+
+                                {/* NSIL data signals */}
+                                <div className="p-4 flex-shrink-0">
+                                    <h3 className="text-xs font-bold text-slate-700 mb-2 uppercase tracking-wide">NSIL Signals Extracted</h3>
                                     <div className="space-y-2">
                                         {[
-                                            { label: 'Jurisdiction', value: 'AUS — QLD', active: demoChatStep >= 2 },
-                                            { label: 'Sector', value: 'Cold-chain / Logistics', active: demoChatStep >= 2 },
-                                            { label: 'Policy Pack', value: 'Asia-Pacific Advisory', active: demoChatStep >= 2 },
-                                            { label: 'Counterparty', value: 'CIS pending', active: demoChatStep >= 3 },
-                                            { label: 'Funder', value: 'NAIF matched', active: demoChatStep >= 4 },
-                                        ].map(({ label, value, active }) => (
-                                            <div key={label} className={`transition-opacity duration-500 ${active ? 'opacity-100' : 'opacity-20'}`}>
-                                                <p className="text-[9px] text-slate-500">{label}</p>
-                                                <p className="text-[10px] font-medium text-slate-300">{value}</p>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                {/* Docs queued */}
-                                <div>
-                                    <p className="text-[9px] text-slate-500 uppercase tracking-widest mb-2">Documents Queued</p>
-                                    <div className="space-y-1.5">
-                                        {['NAIF Submission Brief', 'Investment Prospectus', 'Risk Register', 'Stakeholder Plan', 'LOI Template'].map((doc) => (
-                                            <div key={doc} className={`flex items-center gap-1.5 transition-opacity duration-500 ${demoChatStep >= 5 ? 'opacity-100' : 'opacity-15'}`}>
-                                                <div className={`w-1 h-1 flex-shrink-0 ${demoChatStep >= DEMO_MESSAGES.length ? 'bg-emerald-400' : 'bg-slate-600'}`} />
-                                                <p className="text-[10px] text-slate-400">{doc}</p>
+                                            { label: 'Jurisdiction', value: 'Australia — Queensland', step: 2 },
+                                            { label: 'Sector', value: 'Cold-chain / Logistics', step: 2 },
+                                            { label: 'Policy Pack', value: 'Asia-Pacific Advisory', step: 2 },
+                                            { label: 'Counterparty', value: 'Developer (CIS pending)', step: 3 },
+                                            { label: 'Lead Funder', value: 'NAIF matched', step: 4 },
+                                        ].map(({ label, value, step }) => (
+                                            <div key={label} className={`px-2 py-1.5 border text-[11px] transition-all duration-500 ${demoChatStep >= step ? 'border-stone-200 bg-white' : 'border-stone-100 bg-stone-50 opacity-30'}`}>
+                                                <p className="text-[9px] text-slate-400 uppercase tracking-wide">{label}</p>
+                                                <p className="font-medium text-slate-700">{value}</p>
                                             </div>
                                         ))}
                                     </div>
                                 </div>
                             </div>
-                        </div>
-
-                        {/* Footer — input bar replica (static) */}
-                        <div className="px-4 py-2.5 border-t border-stone-200 bg-white flex items-center gap-3">
-                            <div className="flex-1 border border-stone-300 px-3 py-2 text-xs text-slate-400 bg-stone-50 select-none">Type your response...</div>
-                            <div className="px-4 py-2 bg-slate-200 text-slate-400 text-xs font-medium select-none">Send</div>
-                            <p className="text-[9px] text-slate-400 ml-2">Display mode — <button onClick={() => termsAccepted && onEnterPlatform?.()} className="text-blue-600 hover:underline">launch live session →</button></p>
                         </div>
                     </div>
                 </div>
             </section>
+
 
             {/* Photo Banner  -  Document Intelligence */}
 
