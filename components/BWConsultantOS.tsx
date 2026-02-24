@@ -39,6 +39,15 @@ interface Message {
   phase?: CasePhase;
 }
 
+type ExecutionTaskStatus = 'queued' | 'running' | 'completed' | 'failed';
+
+interface ExecutionTask {
+  id: 'ingestion' | 'response' | 'insight' | 'followup';
+  label: string;
+  status: ExecutionTaskStatus;
+  detail?: string;
+}
+
 interface CaseStudy {
   userName: string;
   organizationName: string;
@@ -420,6 +429,7 @@ const BWConsultantOS: React.FC<BWConsultantOSProps> = ({ onOpenWorkspace, embedd
   const [isStreamingResponse, setIsStreamingResponse] = useState(false);
   const [reactiveDraftStatus, setReactiveDraftStatus] = useState('');
   const [reactiveDraftHint, setReactiveDraftHint] = useState('');
+  const [executionTimeline, setExecutionTimeline] = useState<ExecutionTask[]>([]);
   const [currentPhase, setCurrentPhase] = useState<CasePhase>('intake');
   
   // Case study state
@@ -489,6 +499,21 @@ const BWConsultantOS: React.FC<BWConsultantOSProps> = ({ onOpenWorkspace, embedd
   const lastKernelSignalRef = useRef<string>('');
   const chatSession = useRef(getChatSession());
   const agenticAIRef = useRef(new BWConsultantAgenticAI());
+
+  const initializeExecutionTimeline = useCallback(() => {
+    setExecutionTimeline([
+      { id: 'ingestion', label: 'Context ingest', status: 'queued' },
+      { id: 'response', label: 'Consultant response stream', status: 'queued' },
+      { id: 'insight', label: 'NSIL insight scan', status: 'queued' },
+      { id: 'followup', label: 'High-value follow-up planning', status: 'queued' }
+    ]);
+  }, []);
+
+  const setExecutionTaskStatus = useCallback((id: ExecutionTask['id'], status: ExecutionTaskStatus, detail?: string) => {
+    setExecutionTimeline((prev) => prev.map((task) => (
+      task.id === id ? { ...task, status, detail } : task
+    )));
+  }, []);
 
   // Scroll to bottom on new messages
   useEffect(() => {
@@ -1677,32 +1702,14 @@ Respond naturally and helpfully. Keep responses focused and actionable.`;
     setInputValue('');
     setUploadedFiles([]);
     setIsLoading(true);
+    initializeExecutionTimeline();
+    setExecutionTaskStatus('ingestion', 'running', 'Parsing user input and updating case draft');
 
     try {
       setCaseStudy(prev => ({
         ...prev,
         additionalContext: [...prev.additionalContext, userContent]
       }));
-
-      const assistantMessageId = crypto.randomUUID();
-      setMessages(prev => [...prev, {
-        id: assistantMessageId,
-        role: 'assistant',
-        content: '',
-        timestamp: new Date(),
-        phase: userMessagePhase
-      }]);
-
-      setIsStreamingResponse(true);
-      let responseContent = await processWithAIStream(
-        userContent,
-        `Autonomous mixed-initiative mode: answer user intent first, then move the case forward with one highest-value follow-up if required. Do not run scripted intake.`,
-        (streamText) => {
-          setMessages(prev => prev.map((msg) => (
-            msg.id === assistantMessageId ? { ...msg, content: streamText } : msg
-          )));
-        }
-      );
 
       const caseDraft: CaseStudy = {
         ...caseStudy,
@@ -1723,43 +1730,80 @@ Respond naturally and helpfully. Keep responses focused and actionable.`;
       const liveReadiness = computeReadiness(caseDraft);
       const inferredPhase: CasePhase = liveReadiness < 55 ? 'discovery' : liveReadiness < 80 ? 'analysis' : 'recommendations';
       setCurrentPhase(inferredPhase);
+      setExecutionTaskStatus('ingestion', 'completed', `Case readiness inferred at ${liveReadiness}% (${inferredPhase})`);
+
+      const assistantMessageId = crypto.randomUUID();
+      setMessages(prev => [...prev, {
+        id: assistantMessageId,
+        role: 'assistant',
+        content: '',
+        timestamp: new Date(),
+        phase: userMessagePhase
+      }]);
+
+      setExecutionTaskStatus('insight', 'running', 'Running NSIL signal extraction in parallel');
+      const agenticInsightsPromise = (async () => {
+        try {
+          const insights = await agenticAIRef.current.consult(toAgenticParams(caseDraft), 'case_discovery');
+          setExecutionTaskStatus('insight', 'completed', `${insights.length} insight${insights.length === 1 ? '' : 's'} generated`);
+          return insights;
+        } catch (agenticError) {
+          console.warn('Agentic insight generation failed:', agenticError);
+          setExecutionTaskStatus('insight', 'failed', 'Insight scan unavailable for this turn');
+          return [];
+        }
+      })();
+
+      setExecutionTaskStatus('response', 'running', 'Streaming consultant response');
+      setIsStreamingResponse(true);
+      let responseContent = await processWithAIStream(
+        userContent,
+        `Autonomous mixed-initiative mode: answer user intent first, then move the case forward with one highest-value follow-up if required. Do not run scripted intake.`,
+        (streamText) => {
+          setMessages(prev => prev.map((msg) => (
+            msg.id === assistantMessageId ? { ...msg, content: streamText } : msg
+          )));
+        }
+      );
+      setExecutionTaskStatus('response', 'completed', 'Primary response delivered');
 
       const nextFollowUp = getHighestValueFollowUp(caseDraft);
       const trimmedUserContent = userContent.trim();
       const isGreetingOnly = /^(hi|hello|hey|good\s+(morning|afternoon|evening)|yo|sup)[!.\s]*$/i.test(trimmedUserContent);
       const likelyDirectQuestion = /\?|\b(explain|what|why|how|who|can you|could you|should we)\b/i.test(trimmedUserContent);
+
+      setExecutionTaskStatus('followup', 'running', 'Evaluating next highest-value clarification');
       if (nextFollowUp && !isGreetingOnly && (liveReadiness < 80 || likelyDirectQuestion)) {
         responseContent = `${responseContent}\n\nOne high-value detail to improve decision quality:\n${nextFollowUp}`;
         setAdaptiveQuestionsAsked(prev => prev + 1);
+        setExecutionTaskStatus('followup', 'completed', 'Follow-up question appended');
+      } else {
+        setExecutionTaskStatus('followup', 'completed', 'No follow-up needed for this turn');
       }
 
       setMessages(prev => prev.map((msg) => (
         msg.id === assistantMessageId ? { ...msg, content: responseContent, phase: inferredPhase } : msg
       )));
 
-      try {
-        const agenticInsights = await agenticAIRef.current.consult(toAgenticParams(caseDraft), 'case_discovery');
-        if (agenticInsights.length > 0) {
-          const insightSummary = agenticInsights
-            .slice(0, 2)
-            .map((insight) => `• ${insight.title}: ${insight.content}`)
-            .join('\n');
+      const agenticInsights = await agenticInsightsPromise;
+      if (agenticInsights.length > 0) {
+        const insightSummary = agenticInsights
+          .slice(0, 2)
+          .map((insight) => `• ${insight.title}: ${insight.content}`)
+          .join('\n');
 
-          setCaseStudy(prev => ({
-            ...prev,
-            aiInsights: [...prev.aiInsights, ...agenticInsights.slice(0, 2).map(i => `${i.title}: ${i.content}`)]
-          }));
+        setCaseStudy(prev => ({
+          ...prev,
+          aiInsights: [...prev.aiInsights, ...agenticInsights.slice(0, 2).map(i => `${i.title}: ${i.content}`)]
+        }));
 
-          setMessages(prev => [...prev, {
-            id: crypto.randomUUID(),
-            role: 'system',
-            content: `NSIL Agentic Insight\n${insightSummary}`,
-            timestamp: new Date(),
-            phase: inferredPhase
-          }]);
-        }
-      } catch (agenticError) {
-        console.warn('Agentic insight generation failed:', agenticError);
+        setMessages(prev => [...prev, {
+          id: crypto.randomUUID(),
+          role: 'system',
+          content: `NSIL Agentic Insight\n${insightSummary}`,
+          timestamp: new Date(),
+          phase: inferredPhase
+        }]);
       }
 
       if (liveReadiness >= 70) {
@@ -1768,6 +1812,7 @@ Respond naturally and helpfully. Keep responses focused and actionable.`;
 
     } catch (error) {
       console.error('Send error:', error);
+      setExecutionTaskStatus('response', 'failed', 'Response pipeline failed');
       const errorMessage: Message = {
         id: crypto.randomUUID(),
         role: 'assistant',
@@ -1784,6 +1829,8 @@ Respond naturally and helpfully. Keep responses focused and actionable.`;
     inputValue,
     uploadedFiles,
     currentPhase,
+    initializeExecutionTimeline,
+    setExecutionTaskStatus,
     readFileContent,
     processWithAIStream,
     generateRecommendations,
@@ -3157,6 +3204,32 @@ Each selected output must include:
                   )}
                 </button>
               </div>
+              {executionTimeline.length > 0 && (
+                <div className="max-w-4xl mx-auto mt-2 border border-stone-200 bg-stone-50 px-3 py-2">
+                  <p className="text-[11px] font-semibold text-slate-800">Planner / Executor Timeline</p>
+                  <div className="mt-1 grid md:grid-cols-2 gap-1.5">
+                    {executionTimeline.map((task) => (
+                      <div key={task.id} className="flex items-start justify-between gap-2 border border-stone-200 bg-white px-2 py-1">
+                        <div>
+                          <p className="text-[11px] text-slate-700 font-medium">{task.label}</p>
+                          {task.detail && <p className="text-[10px] text-slate-500">{task.detail}</p>}
+                        </div>
+                        <span className={`text-[10px] px-1.5 py-0.5 border ${
+                          task.status === 'completed'
+                            ? 'bg-green-50 text-green-700 border-green-200'
+                            : task.status === 'running'
+                              ? 'bg-blue-50 text-blue-700 border-blue-200'
+                              : task.status === 'failed'
+                                ? 'bg-red-50 text-red-700 border-red-200'
+                                : 'bg-stone-100 text-stone-600 border-stone-200'
+                        }`}>
+                          {task.status.toUpperCase()}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               {reactiveDraftStatus && !isLoading && (
                 <div className="max-w-4xl mx-auto mt-2 border border-blue-200 bg-blue-50 px-3 py-2">
                   <p className="text-[11px] font-semibold text-blue-800">{reactiveDraftStatus}</p>
