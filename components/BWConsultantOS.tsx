@@ -997,16 +997,7 @@ const BWConsultantOS: React.FC<BWConsultantOSProps> = ({ onOpenWorkspace, embedd
 
     if (regionalKernel.dataFabric.overallFreshnessHours > 14 || regionalKernel.governanceReadiness < 75) {
       lastKernelSignalRef.current = signalKey;
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: crypto.randomUUID(),
-          role: 'system',
-          content: `Autonomous cycle trigger fired: Sense → Analyze → Replan. Data freshness is ${regionalKernel.dataFabric.overallFreshnessHours}h and governance readiness is ${regionalKernel.governanceReadiness}%.`,
-          timestamp: new Date(),
-          phase: currentPhase
-        }
-      ]);
+      // Background signal only — silent kernel refresh, no chat injection
     }
   }, [regionalKernel, currentPhase]);
 
@@ -1912,7 +1903,7 @@ Respond naturally and helpfully. Keep responses focused and actionable.`;
       )));
 
       const agenticInsights = await agenticInsightsPromise;
-      if (agenticInsights.length > 0) {
+      if (agenticInsights.length > 0 && liveReadiness >= 40 && !isGreetingOnly) {
         const insightSummary = agenticInsights
           .slice(0, 2)
           .map((insight) => `• ${insight.title}: ${insight.content}`)
@@ -3296,7 +3287,7 @@ Each selected output must include:
                               .replace(/\n/g, '<br />')
                           }} 
                         />
-                        {msg.provenance && msg.role !== 'user' && (
+                        {msg.provenance && msg.role !== 'user' && msg.provenance.confidence >= 50 && (
                           <div className="mt-2 pt-2 border-t border-stone-200 space-y-1">
                             <div className="flex items-center gap-2">
                               <span className="text-[10px] text-slate-500">Confidence:</span>
