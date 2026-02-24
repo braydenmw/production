@@ -87,8 +87,8 @@ const CommandCenter: React.FC<CommandCenterProps> = ({ onEnterPlatform, onOpenGl
                         <button onClick={() => scrollToSection('mission')} className="hover:text-blue-600 transition-colors">Mission</button>
                         <button onClick={() => scrollToSection('platform')} className="hover:text-blue-600 transition-colors">The Platform</button>
                         <button onClick={() => scrollToSection('brain')} className="hover:text-blue-600 transition-colors">The Brain</button>
-                        <button onClick={() => scrollToSection('protocol')} className="hover:text-blue-600 transition-colors">Protocol</button>
-                        <button onClick={() => scrollToSection('proof')} className="hover:text-blue-600 transition-colors">Proof</button>
+                        <button onClick={() => setShowProtocolDetails(true)} className="hover:text-blue-600 transition-colors">Protocol</button>
+                        <button onClick={() => { setUnifiedActiveTab('proof'); setShowUnifiedSystemOverview(true); }} className="hover:text-blue-600 transition-colors">Proof</button>
                         <button onClick={() => scrollToSection('partnerships')} className="hover:text-blue-600 transition-colors">Partnerships</button>
                     </div>
                     
