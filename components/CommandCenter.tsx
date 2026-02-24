@@ -541,7 +541,7 @@ const CommandCenter: React.FC<CommandCenterProps> = ({ onEnterPlatform, onOpenGl
 
             {/* BW CONSULTANT AI DEMO - Display Mode Only */}
             <section className="py-8 px-4 bg-white">
-                <div className="max-w-3xl mx-auto">
+                <div className="max-w-6xl mx-auto">
                     {/* Header */}
                     <div className="mb-3 flex items-center justify-between gap-3">
                         <div>
@@ -553,7 +553,7 @@ const CommandCenter: React.FC<CommandCenterProps> = ({ onEnterPlatform, onOpenGl
                         </p>
                     </div>
 
-                    {/* Demo Window */}
+                    {/* Demo Window — landscape two-column layout */}
                     <div className="rounded-xl shadow-md overflow-hidden border border-slate-200 flex flex-col">
                         {/* Banner */}
                         <div className="px-4 py-2 bg-slate-900 flex items-center justify-between">
@@ -568,83 +568,142 @@ const CommandCenter: React.FC<CommandCenterProps> = ({ onEnterPlatform, onOpenGl
                             <span className="hidden sm:block text-[9px] text-slate-500">Intake → Discovery → Analysis → Recommendations → Generation</span>
                         </div>
 
-                        {/* Chat Messages */}
-                        <div className="bg-white max-h-[400px] overflow-y-auto p-4 space-y-3">
-                            {/* Scenario label */}
-                            <div className="flex justify-center">
-                                <span className="text-[9px] px-2.5 py-0.5 bg-slate-100 border border-slate-200 text-slate-400 rounded-full">Cairns Regional Development Authority — Cold-Chain Logistics Hub, North Queensland</span>
-                            </div>
+                        {/* Body: chat + sidebar */}
+                        <div className="flex flex-col md:flex-row bg-white" style={{ minHeight: '300px' }}>
 
-                            {DEMO_MESSAGES.slice(0, demoChatStep).map((msg, i) => (
-                                <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                    {msg.role === 'system' && (
-                                        <div className="max-w-[90%] px-3 py-1.5 bg-indigo-50 border border-indigo-200 rounded-md">
-                                            <p className="text-[10px] text-indigo-600 font-mono leading-relaxed">
-                                                <span className="font-bold text-indigo-800">NSIL</span> &bull; {msg.text}
-                                            </p>
-                                        </div>
-                                    )}
-                                    {msg.role === 'user' && (
-                                        <div className="max-w-[70%] px-3 py-2 bg-blue-600 text-white rounded-xl rounded-br-sm shadow-sm">
-                                            <p className="text-xs leading-relaxed">{msg.text}</p>
-                                        </div>
-                                    )}
-                                    {msg.role === 'assistant' && (
-                                        <div className="max-w-[88%] flex gap-2">
-                                            <div className="w-6 h-6 bg-blue-700 rounded flex items-center justify-center flex-shrink-0 mt-0.5">
+                            {/* Chat column */}
+                            <div className="flex-1 overflow-y-auto p-4 space-y-3 border-r border-slate-100" style={{ maxHeight: '320px' }}>
+                                {/* Scenario label */}
+                                <div className="flex justify-center">
+                                    <span className="text-[9px] px-2.5 py-0.5 bg-slate-100 border border-slate-200 text-slate-400 rounded-full">Cairns Regional Development Authority — Cold-Chain Logistics Hub, North Queensland</span>
+                                </div>
+
+                                {DEMO_MESSAGES.slice(0, demoChatStep).map((msg, i) => (
+                                    <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                        {msg.role === 'system' && (
+                                            <div className="max-w-[92%] px-3 py-1.5 bg-indigo-50 border border-indigo-200 rounded-md">
+                                                <p className="text-[10px] text-indigo-600 font-mono leading-relaxed">
+                                                    <span className="font-bold text-indigo-800">NSIL</span> &bull; {msg.text}
+                                                </p>
+                                            </div>
+                                        )}
+                                        {msg.role === 'user' && (
+                                            <div className="max-w-[68%] px-3 py-2 bg-blue-600 text-white rounded-xl rounded-br-sm shadow-sm">
+                                                <p className="text-xs leading-relaxed">{msg.text}</p>
+                                            </div>
+                                        )}
+                                        {msg.role === 'assistant' && (
+                                            <div className="max-w-[90%] flex gap-2">
+                                                <div className="w-6 h-6 bg-blue-700 rounded flex items-center justify-center flex-shrink-0 mt-0.5">
+                                                    <span className="text-white font-bold text-[8px]">BW</span>
+                                                </div>
+                                                <div className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl rounded-tl-sm">
+                                                    <p className="text-[10px] font-semibold text-blue-700 mb-0.5">BW Consultant</p>
+                                                    <p className="text-xs text-slate-700 leading-relaxed whitespace-pre-line">{msg.text}</p>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+
+                                {/* Typing indicator */}
+                                {demoTyping && (
+                                    <div className="flex justify-start">
+                                        <div className="flex gap-2">
+                                            <div className="w-6 h-6 bg-blue-700 rounded flex items-center justify-center flex-shrink-0">
                                                 <span className="text-white font-bold text-[8px]">BW</span>
                                             </div>
                                             <div className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl rounded-tl-sm">
-                                                <p className="text-[10px] font-semibold text-blue-700 mb-0.5">BW Consultant</p>
-                                                <p className="text-xs text-slate-700 leading-relaxed whitespace-pre-line">{msg.text}</p>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            ))}
-
-                            {/* Typing indicator */}
-                            {demoTyping && (
-                                <div className="flex justify-start">
-                                    <div className="flex gap-2">
-                                        <div className="w-6 h-6 bg-blue-700 rounded flex items-center justify-center flex-shrink-0">
-                                            <span className="text-white font-bold text-[8px]">BW</span>
-                                        </div>
-                                        <div className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl rounded-tl-sm">
-                                            <div className="flex items-center gap-1">
-                                                <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                                                <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                                                <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                                                <div className="flex items-center gap-1">
+                                                    <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                                                    <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                                                    <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                </div>
-                            )}
+                                )}
 
-                            {/* Replay / CTA when done */}
-                            {demoChatStep >= DEMO_MESSAGES.length && !demoTyping && (
-                                <div className="flex items-center justify-center gap-3 pt-2">
-                                    <span className="text-[10px] text-slate-400">Session complete &mdash; 5 documents queued</span>
-                                    <button
-                                        onClick={() => { setDemoChatStep(0); setDemoTyping(false); }}
-                                        className="text-[10px] px-3 py-1 border border-slate-300 text-slate-600 hover:bg-slate-50 transition-colors rounded"
-                                    >
-                                        Replay
-                                    </button>
-                                    <button
-                                        onClick={() => termsAccepted && onEnterPlatform?.()}
-                                        className="text-[10px] px-3 py-1 bg-blue-600 text-white hover:bg-blue-500 transition-colors rounded font-semibold"
-                                    >
-                                        Launch BW Consultant &rarr;
-                                    </button>
+                                {/* Replay / CTA when done */}
+                                {demoChatStep >= DEMO_MESSAGES.length && !demoTyping && (
+                                    <div className="flex items-center gap-3 pt-2">
+                                        <span className="text-[10px] text-slate-400">Session complete</span>
+                                        <button
+                                            onClick={() => { setDemoChatStep(0); setDemoTyping(false); }}
+                                            className="text-[10px] px-3 py-1 border border-slate-300 text-slate-600 hover:bg-slate-50 transition-colors rounded"
+                                        >
+                                            Replay
+                                        </button>
+                                        <button
+                                            onClick={() => termsAccepted && onEnterPlatform?.()}
+                                            className="text-[10px] px-3 py-1 bg-blue-600 text-white hover:bg-blue-500 transition-colors rounded font-semibold"
+                                        >
+                                            Launch BW Consultant &rarr;
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Right status sidebar */}
+                            <div className="w-full md:w-56 flex-shrink-0 bg-slate-950 p-4 flex flex-col gap-4">
+                                {/* Readiness meter */}
+                                <div>
+                                    <p className="text-[9px] text-slate-500 uppercase tracking-widest mb-1">Case Readiness</p>
+                                    <div className="flex items-end gap-2">
+                                        <span className="text-2xl font-bold text-white tabular-nums">{Math.min(100, Math.round((demoChatStep / DEMO_MESSAGES.length) * 73) + 27)}%</span>
+                                    </div>
+                                    <div className="mt-1.5 w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                                        <div
+                                            className="h-full bg-blue-500 rounded-full transition-all duration-700"
+                                            style={{ width: `${Math.min(100, Math.round((demoChatStep / DEMO_MESSAGES.length) * 73) + 27)}%` }}
+                                        />
+                                    </div>
                                 </div>
-                            )}
+
+                                {/* NSIL signals */}
+                                <div>
+                                    <p className="text-[9px] text-slate-500 uppercase tracking-widest mb-2">NSIL Signals</p>
+                                    <div className="space-y-1.5">
+                                        {[
+                                            { label: 'Jurisdiction', value: 'AUS — QLD', active: demoChatStep >= 2 },
+                                            { label: 'Sector', value: 'Cold-chain / Logistics', active: demoChatStep >= 2 },
+                                            { label: 'Policy Pack', value: 'Asia-Pacific Advisory', active: demoChatStep >= 2 },
+                                            { label: 'Counterparty', value: 'CIS pending', active: demoChatStep >= 3 },
+                                            { label: 'Funder', value: 'NAIF (matched)', active: demoChatStep >= 4 },
+                                        ].map(({ label, value, active }) => (
+                                            <div key={label} className={`transition-opacity duration-500 ${active ? 'opacity-100' : 'opacity-20'}`}>
+                                                <p className="text-[9px] text-slate-500">{label}</p>
+                                                <p className="text-[10px] font-medium text-slate-300">{value}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Documents queued */}
+                                <div>
+                                    <p className="text-[9px] text-slate-500 uppercase tracking-widest mb-2">Documents Queued</p>
+                                    <div className="space-y-1">
+                                        {[
+                                            'NAIF Submission Brief',
+                                            'Investment Prospectus',
+                                            'Risk Register',
+                                            'Stakeholder Plan',
+                                            'LOI Template',
+                                        ].map((doc, i) => (
+                                            <div key={doc} className={`flex items-center gap-1.5 transition-opacity duration-500 ${demoChatStep >= DEMO_MESSAGES.length - i * 0 && demoChatStep >= 4 ? 'opacity-100' : 'opacity-15'}`}>
+                                                <div className={`w-1 h-1 rounded-full flex-shrink-0 ${demoChatStep >= DEMO_MESSAGES.length ? 'bg-emerald-400' : 'bg-slate-600'}`} />
+                                                <p className="text-[10px] text-slate-400">{doc}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
                         {/* Footer status bar */}
-                        <div className="px-3 py-1.5 bg-slate-900 border-t border-slate-700 flex items-center justify-between">
+                        <div className="px-3 py-1.5 bg-slate-900 border-t border-slate-800 flex items-center justify-between">
                             <p className="text-[9px] text-slate-500">NSIL Agentic Runtime &bull; Display mode</p>
-                            <p className="text-[9px] text-slate-500">Readiness: {Math.min(100, Math.round((demoChatStep / DEMO_MESSAGES.length) * 73) + 27)}%</p>
+                            <p className="text-[9px] text-slate-500">{demoChatStep} / {DEMO_MESSAGES.length} exchanges</p>
                         </div>
                     </div>
                 </div>
