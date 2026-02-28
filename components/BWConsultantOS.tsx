@@ -6140,7 +6140,7 @@ Use concrete facts from the case. No template language. Write the complete repor
                         disabled={liveInsightLoading}
                         className="px-2 py-1 text-[10px] border border-emerald-600 bg-emerald-600 text-white disabled:opacity-60"
                       >
-                        {liveInsightLoading ? 'Searching…' : 'Run Live Search'}
+                        {liveInsightLoading ? 'Searching…' : liveInsightInputsChanged ? 'Refresh Live Search' : 'Run Live Search'}
                       </button>
                     </div>
                     <p className="mt-1 text-[9px] text-slate-500">
