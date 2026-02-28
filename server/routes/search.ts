@@ -51,6 +51,36 @@ function sanitiseUserInput(input: string, maxLength = 2000): { safe: boolean; cl
   return { safe: true, cleaned };
 }
 
+function buildSearchQueryFromContext(input: {
+  query?: string;
+  country?: string;
+  focus?: string | string[];
+  sector?: string;
+  target?: string;
+}) {
+  const manual = (input.query || '').trim();
+  if (manual.length >= 4) return manual;
+
+  const focusParts = Array.isArray(input.focus)
+    ? input.focus
+    : typeof input.focus === 'string'
+      ? input.focus.split(/[•,]/)
+      : [];
+
+  const derived = [
+    ...focusParts.map((part) => part.trim()).filter(Boolean),
+    (input.sector || '').trim(),
+    (input.country || '').trim(),
+    (input.target || '').trim()
+  ].filter(Boolean).join(' ');
+
+  if (derived.length >= 4) {
+    return derived;
+  }
+
+  return manual || 'regional investment partnerships government finance';
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // SERPER - Google Search API
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -61,14 +91,23 @@ function sanitiseUserInput(input: string, maxLength = 2000): { safe: boolean; cl
  */
 router.post('/serper', async (req: Request, res: Response) => {
   try {
-    const { query, num = 10, type = 'search' } = req.body;
+    const { query, num = 10, type = 'search', country, focus, sector, target } = req.body;
 
     if (!query) {
       return res.status(400).json({ error: 'Query is required' });
     }
 
+    const providerStatus: Record<string, string> = { serper: 'pending' };
+    const queryUsedRaw = buildSearchQueryFromContext({
+      query,
+      country,
+      focus,
+      sector,
+      target
+    });
+
     // Sanitise input
-    const sanitised = sanitiseUserInput(query, 500);
+    const sanitised = sanitiseUserInput(queryUsedRaw, 500);
     if (!sanitised.safe) {
       return res.status(400).json({ error: sanitised.reason });
     }
@@ -77,8 +116,17 @@ router.post('/serper', async (req: Request, res: Response) => {
     const SERPER_API_KEY = process.env.SERPER_API_KEY;
     
     if (!SERPER_API_KEY) {
-      // Fallback to DuckDuckGo instant answer API (no key required)
-      return await fallbackSearch(safeQuery, res);
+      providerStatus.serper = 'missing_key';
+      const fallbackData = await fallbackSearch(safeQuery);
+      return res.json({
+        ...fallbackData,
+        ok: fallbackData.organic.length > 0,
+        queryUsed: safeQuery,
+        providerStatus,
+        reason: fallbackData.organic.length > 0
+          ? 'Serper key missing; fallback search returned results.'
+          : 'Serper key missing and fallback returned no results.'
+      });
     }
 
     const endpoint = type === 'news' 
@@ -102,13 +150,25 @@ router.post('/serper', async (req: Request, res: Response) => {
     }
 
     const data = await response.json();
-    return res.json(data);
+    providerStatus.serper = 'ok';
+    const organic = Array.isArray(data.organic) ? data.organic : [];
+
+    return res.json({
+      ...data,
+      ok: organic.length > 0,
+      queryUsed: safeQuery,
+      providerStatus,
+      reason: organic.length > 0 ? null : 'Provider returned zero matches for this query.'
+    });
   } catch (error) {
     console.error('Serper search error:', error);
-    return res.status(500).json({ 
+    return res.status(200).json({
+      ok: false,
       error: 'Search failed',
       fallback: true,
-      organic: []
+      organic: [],
+      providerStatus: { serper: 'error' },
+      reason: error instanceof Error ? error.message : 'Unknown search error'
     });
   }
 });
@@ -116,7 +176,7 @@ router.post('/serper', async (req: Request, res: Response) => {
 /**
  * Fallback search using DuckDuckGo (no API key required)
  */
-async function fallbackSearch(query: string, res: Response) {
+async function fallbackSearch(query: string) {
   try {
     const response = await fetch(
       `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1`
@@ -149,13 +209,13 @@ async function fallbackSearch(query: string, res: Response) {
       });
     }
     
-    return res.json({
+    return {
       organic,
       searchParameters: { q: query, engine: 'duckduckgo-fallback' }
-    });
+    };
   } catch (error) {
     console.error('Fallback search error:', error);
-    return res.json({ organic: [], fallback: true });
+    return { organic: [], fallback: true, searchParameters: { q: query, engine: 'duckduckgo-fallback' } };
   }
 }
 

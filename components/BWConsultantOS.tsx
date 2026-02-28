@@ -669,6 +669,9 @@ const BWConsultantOS: React.FC<BWConsultantOSProps> = ({ onOpenWorkspace, embedd
   const [liveInsightError, setLiveInsightError] = useState('');
   const [liveInsightResults, setLiveInsightResults] = useState<LiveInsightResult[]>([]);
   const [liveInsightUpdatedAt, setLiveInsightUpdatedAt] = useState('');
+  const [liveInsightQueryUsed, setLiveInsightQueryUsed] = useState('');
+  const [liveInsightProviderStatus, setLiveInsightProviderStatus] = useState('');
+  const [liveInsightRunReason, setLiveInsightRunReason] = useState('');
   const [liveInsightFilter, setLiveInsightFilter] = useState<LiveInsightFilter>('all');
   const [liveInsightsRequested, setLiveInsightsRequested] = useState(false);
   const [lastLiveInsightSearchSignature, setLastLiveInsightSearchSignature] = useState('');
@@ -1732,7 +1735,16 @@ const BWConsultantOS: React.FC<BWConsultantOSProps> = ({ onOpenWorkspace, embedd
   }, [quickDraftLines, quickCountryFocus, quickBusinessTarget, quickCustomSector, quickCustomFocus, syncQuickConsultantToCaseStudy]);
 
   const fetchLiveWorldInsights = useCallback(async (overrideQuery?: string, silent = false) => {
-    const query = (overrideQuery ?? liveInsightQuery).trim() || liveInsightBaseQuery;
+    const manualQuery = (overrideQuery ?? liveInsightQuery).trim();
+    const contextDerivedQuery = [
+      liveInsightBaseQuery,
+      effectivePilotFocusText,
+      quickCustomSector.trim() || activeIssuePack.label,
+      quickCountryFocus.trim(),
+      quickBusinessTarget.trim()
+    ].filter(Boolean).join(' ').trim();
+
+    const query = (manualQuery.length >= 4 ? manualQuery : contextDerivedQuery) || 'regional investment partnerships government finance';
     if (!query.trim()) return;
 
     const getSourceFromLink = (link: string) => {
@@ -1761,6 +1773,8 @@ const BWConsultantOS: React.FC<BWConsultantOSProps> = ({ onOpenWorkspace, embedd
 
     setLiveInsightLoading(true);
     setLiveInsightError('');
+    setLiveInsightRunReason('');
+    setLiveInsightQueryUsed(query);
 
     if (!silent || !liveInsightQuery.trim()) {
       setLiveInsightQuery(query);
@@ -1805,10 +1819,18 @@ const BWConsultantOS: React.FC<BWConsultantOSProps> = ({ onOpenWorkspace, embedd
         })
       ]);
 
-      const newsData = newsRes.ok ? await newsRes.json() : { articles: [] as Array<{ title?: string; description?: string; url?: string; source?: string; publishedAt?: string }> };
-      const govData = govRes.ok ? await govRes.json() : { organic: [] as SerperLikeItem[] };
-      const financeData = financeRes.ok ? await financeRes.json() : { organic: [] as SerperLikeItem[] };
-      const entityData = entityRes.ok ? await entityRes.json() : { organic: [] as SerperLikeItem[] };
+      const newsData = newsRes.ok ? await newsRes.json() : { articles: [] as Array<{ title?: string; description?: string; url?: string; source?: string; publishedAt?: string }>, reason: 'News request failed' };
+      const govData = govRes.ok ? await govRes.json() : { organic: [] as SerperLikeItem[], providerStatus: { serper: 'error' }, reason: 'Government search failed' };
+      const financeData = financeRes.ok ? await financeRes.json() : { organic: [] as SerperLikeItem[], providerStatus: { serper: 'error' }, reason: 'Finance search failed' };
+      const entityData = entityRes.ok ? await entityRes.json() : { organic: [] as SerperLikeItem[], providerStatus: { serper: 'error' }, reason: 'Entity search failed' };
+
+      const providerStatuses = [govData, financeData, entityData]
+        .map((item) => item?.providerStatus?.serper)
+        .filter((status): status is string => Boolean(status));
+      setLiveInsightProviderStatus(providerStatuses.length > 0 ? Array.from(new Set(providerStatuses)).join(' • ') : 'unknown');
+
+      const reasonMessages = [newsData?.reason, govData?.reason, financeData?.reason, entityData?.reason]
+        .filter((reason): reason is string => Boolean(reason && reason !== 'Provider returned zero matches for this query.'));
 
       const newsInsights: LiveInsightResult[] = (Array.isArray(newsData.articles) ? newsData.articles : [])
         .filter((article) => article.title && article.url)
@@ -1840,13 +1862,45 @@ const BWConsultantOS: React.FC<BWConsultantOSProps> = ({ onOpenWorkspace, embedd
       }));
 
       if (merged.length === 0) {
-        setLiveInsightError('No live search results were returned yet. Try adding a country, company, or government target.');
+        const noResultReason = reasonMessages[0] || 'No live search results were returned yet. Try adding a country, company, or government target.';
+        setLiveInsightError(noResultReason);
+        setLiveInsightRunReason(noResultReason);
+
+        setCaseStudy((prev) => {
+          const missLine = `Live search run returned no direct results: ${noResultReason}`;
+          const queryLine = `Live search query used: ${query}`;
+          const additionalContext = [...prev.additionalContext];
+
+          if (!additionalContext.includes(queryLine)) {
+            additionalContext.push(queryLine);
+          }
+          if (!additionalContext.includes(missLine)) {
+            additionalContext.push(missLine);
+          }
+
+          if (additionalContext.length === prev.additionalContext.length) return prev;
+          return { ...prev, additionalContext };
+        });
         return;
       }
 
+      setLiveInsightRunReason(reasonMessages[0] || '');
+
       setCaseStudy((prev) => {
-        const newLines = merged.slice(0, 4).map((item) => `Live search finding (${item.bucket}): ${item.title} — ${item.source}`);
+        const newLines = merged.slice(0, 6).map((item) => {
+          const snippet = item.snippet?.trim();
+          return `Live search finding (${item.bucket}): ${item.title} — ${item.source}${snippet ? ` | ${snippet}` : ''} | ${item.link}`;
+        });
+        const queryLine = `Live search query used: ${query}`;
+        const providerLine = `Live search provider status: ${providerStatuses.length > 0 ? Array.from(new Set(providerStatuses)).join(' • ') : 'unknown'}`;
         const additionalContext = [...prev.additionalContext];
+
+        if (!additionalContext.includes(queryLine)) {
+          additionalContext.push(queryLine);
+        }
+        if (!additionalContext.includes(providerLine)) {
+          additionalContext.push(providerLine);
+        }
 
         newLines.forEach((line) => {
           if (!additionalContext.includes(line)) {
@@ -6197,8 +6251,17 @@ Use concrete facts from the case. No template language. Write the complete repor
                     {liveInsightUpdatedAt && (
                       <p className="mt-1 text-[9px] text-emerald-700">Last updated: {new Date(liveInsightUpdatedAt).toLocaleString()}</p>
                     )}
+                    {liveInsightQueryUsed && (
+                      <p className="mt-1 text-[9px] text-slate-600">Query used: {liveInsightQueryUsed}</p>
+                    )}
+                    {liveInsightProviderStatus && (
+                      <p className="mt-1 text-[9px] text-slate-600">Provider status: {liveInsightProviderStatus}</p>
+                    )}
                     {liveInsightInputsChanged && (
                       <p className="mt-1 text-[9px] text-amber-700">New inputs since last search. Run Live Search to refresh intelligence.</p>
+                    )}
+                    {!liveInsightError && liveInsightRunReason && (
+                      <p className="mt-1 text-[9px] text-amber-700">{liveInsightRunReason}</p>
                     )}
                     {liveInsightError && <p className="mt-1 text-[9px] text-red-600">{liveInsightError}</p>}
                     {!liveInsightsRequested && !liveInsightLoading && (
