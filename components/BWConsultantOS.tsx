@@ -652,6 +652,7 @@ const BWConsultantOS: React.FC<BWConsultantOSProps> = ({ onOpenWorkspace, embedd
   const [showPilotHowTo, setShowPilotHowTo] = useState(false);
   const [showAboutBWGA, setShowAboutBWGA] = useState(false);
   const [pilotFocus, setPilotFocus] = useState<PilotModeFocus>('new-markets');
+  const [pilotFocusSelections, setPilotFocusSelections] = useState<PilotModeFocus[]>(['new-markets']);
   const [pilotSelectedAddOns, setPilotSelectedAddOns] = useState<string[]>([]);
   const [pilotOptionPreferences, setPilotOptionPreferences] = useState<Record<string, PilotOptionPreference>>({});
   const [customPilotOptionInput, setCustomPilotOptionInput] = useState('');
@@ -1209,8 +1210,22 @@ const BWConsultantOS: React.FC<BWConsultantOSProps> = ({ onOpenWorkspace, embedd
     [activeGlobalIssuePack]
   );
 
+  const normalizedPilotFocusSelections = useMemo(() => (
+    pilotFocusSelections.length > 0 ? pilotFocusSelections : [pilotFocus]
+  ), [pilotFocusSelections, pilotFocus]);
+
+  const selectedPilotFocusLabel = useMemo(() => (
+    normalizedPilotFocusSelections.map((focus) => focus.replace(/-/g, ' ')).join(' • ')
+  ), [normalizedPilotFocusSelections]);
+
+  const effectivePilotFocusText = useMemo(() => {
+    const custom = quickCustomFocus.trim();
+    if (custom) return custom;
+    return selectedPilotFocusLabel || pilotFocus.replace(/-/g, ' ');
+  }, [quickCustomFocus, selectedPilotFocusLabel, pilotFocus]);
+
   const liveInsightBaseQuery = useMemo(() => {
-    const focus = (quickCustomFocus.trim() || pilotFocus.replace(/-/g, ' ')).trim();
+    const focus = effectivePilotFocusText.trim();
     const sector = (quickCustomSector.trim() || activeIssuePack.label).trim();
     const parts = [focus, sector];
 
@@ -1218,17 +1233,17 @@ const BWConsultantOS: React.FC<BWConsultantOSProps> = ({ onOpenWorkspace, embedd
     if (quickBusinessTarget.trim()) parts.push(quickBusinessTarget.trim());
 
     return parts.filter(Boolean).join(' — ');
-  }, [quickCustomFocus, pilotFocus, quickCustomSector, activeIssuePack.label, quickCountryFocus, quickBusinessTarget]);
+  }, [effectivePilotFocusText, quickCustomSector, activeIssuePack.label, quickCountryFocus, quickBusinessTarget]);
 
   const currentLiveInsightInputSignature = useMemo(() => {
     return JSON.stringify({
       query: liveInsightQuery.trim() || liveInsightBaseQuery,
       country: quickCountryFocus.trim(),
       target: quickBusinessTarget.trim(),
-      focus: quickCustomFocus.trim() || pilotFocus,
+      focus: effectivePilotFocusText,
       sector: quickCustomSector.trim() || activeIssuePack.label
     });
-  }, [liveInsightQuery, liveInsightBaseQuery, quickCountryFocus, quickBusinessTarget, quickCustomFocus, pilotFocus, quickCustomSector, activeIssuePack.label]);
+  }, [liveInsightQuery, liveInsightBaseQuery, quickCountryFocus, quickBusinessTarget, effectivePilotFocusText, quickCustomSector, activeIssuePack.label]);
 
   const liveInsightInputsChanged = useMemo(() => {
     if (!liveInsightsRequested || !lastLiveInsightSearchSignature) return false;
@@ -1309,17 +1324,17 @@ const BWConsultantOS: React.FC<BWConsultantOSProps> = ({ onOpenWorkspace, embedd
   }, [caseStudy, activeIssuePack]);
 
   const pilotFocusIssues = useMemo(
-    () => PILOT_GLOBAL_ISSUE_AREAS.filter((issue) => issue.focus === pilotFocus),
-    [pilotFocus]
+    () => PILOT_GLOBAL_ISSUE_AREAS.filter((issue) => normalizedPilotFocusSelections.includes(issue.focus)),
+    [normalizedPilotFocusSelections]
   );
 
   const pilotAdaptiveOptions = useMemo(() => {
     return PILOT_ADAPTIVE_OPTION_CATALOG.filter((option) => {
       if (option.stage !== currentPhase) return false;
-      if (option.focus && option.focus !== pilotFocus) return false;
+      if (option.focus && !normalizedPilotFocusSelections.includes(option.focus)) return false;
       return true;
     }).map((option) => ({ id: option.id, label: option.label, prompt: option.prompt }));
-  }, [currentPhase, pilotFocus]);
+  }, [currentPhase, normalizedPilotFocusSelections]);
 
   const pilotMissingRecommendationOptions = useMemo(() => {
     const options: Array<{ id: string; label: string; prompt: string }> = [];
@@ -1564,7 +1579,7 @@ const BWConsultantOS: React.FC<BWConsultantOSProps> = ({ onOpenWorkspace, embedd
   ) => {
     const country = (overrides?.country ?? quickCountryFocus).trim();
     const businessTarget = (overrides?.businessTarget ?? quickBusinessTarget).trim();
-    const focus = (overrides?.focus ?? (quickCustomFocus.trim() || pilotFocus.replace(/-/g, ' '))).trim();
+    const focus = (overrides?.focus ?? effectivePilotFocusText).trim();
     const sector = (overrides?.sector ?? (quickCustomSector.trim() || activeIssuePack.label)).trim();
     const topicLabel = (overrides?.topicLabel ?? '').trim();
 
@@ -1610,7 +1625,21 @@ const BWConsultantOS: React.FC<BWConsultantOSProps> = ({ onOpenWorkspace, embedd
         }
       ]);
     }
-  }, [quickCountryFocus, quickBusinessTarget, quickCustomFocus, pilotFocus, quickCustomSector, activeIssuePack.label]);
+  }, [quickCountryFocus, quickBusinessTarget, effectivePilotFocusText, quickCustomSector, activeIssuePack.label]);
+
+  const handleTogglePilotFocus = useCallback((focus: PilotModeFocus) => {
+    const nextSelections = pilotFocusSelections.includes(focus)
+      ? pilotFocusSelections.filter((item) => item !== focus)
+      : [...pilotFocusSelections, focus];
+
+    const safeSelections = nextSelections.length > 0 ? nextSelections : [focus];
+    setPilotFocusSelections(safeSelections);
+    setPilotFocus(focus);
+
+    syncQuickConsultantToCaseStudy('focus-button', {
+      focus: safeSelections.map((item) => item.replace(/-/g, ' ')).join(' • ')
+    });
+  }, [pilotFocusSelections, syncQuickConsultantToCaseStudy]);
 
   const handleAddCustomPilotOption = useCallback(() => {
     const text = customPilotOptionInput.trim();
@@ -1806,7 +1835,7 @@ const BWConsultantOS: React.FC<BWConsultantOSProps> = ({ onOpenWorkspace, embedd
         query,
         country: quickCountryFocus.trim(),
         target: quickBusinessTarget.trim(),
-        focus: quickCustomFocus.trim() || pilotFocus,
+        focus: effectivePilotFocusText,
         sector: quickCustomSector.trim() || activeIssuePack.label
       }));
 
@@ -1840,7 +1869,7 @@ const BWConsultantOS: React.FC<BWConsultantOSProps> = ({ onOpenWorkspace, embedd
     } finally {
       setLiveInsightLoading(false);
     }
-  }, [liveInsightQuery, liveInsightBaseQuery, quickCountryFocus, quickBusinessTarget, quickCustomFocus, pilotFocus, quickCustomSector, activeIssuePack.label]);
+  }, [liveInsightQuery, liveInsightBaseQuery, quickCountryFocus, quickBusinessTarget, effectivePilotFocusText, quickCustomSector, activeIssuePack.label]);
 
   const handlePinLiveInsightToDraft = useCallback((item: LiveInsightResult) => {
     const evidenceLine = `Pinned live source (${item.bucket}): ${item.title} — ${item.source} | ${item.link}`;
@@ -2074,8 +2103,8 @@ Consultant operating rules:
 - If data is incomplete, ask the single highest-value question that improves decision quality.
 - Convert provided information into action-oriented outputs, not generic commentary.
 
-Quick Consultant context (user selections):
-- Focus area: ${quickCustomFocus || pilotFocus.replace(/-/g, ' ')}
+ Quick Consultant context (user selections):
+- Focus area: ${effectivePilotFocusText}
 - Country/region of focus: ${quickCountryFocus || 'Not specified yet'}
 - Business target (who they want to work with): ${quickBusinessTarget || 'Not specified yet'}
 - Industry/sector: ${activeIssuePack.label}${quickCustomSector ? ` (custom: ${quickCustomSector})` : ''}
@@ -2095,7 +2124,7 @@ When the user has specified a country or region, proactively reference:
 Respond naturally and helpfully. Keep responses focused and actionable.
 
 ${agentRegistry.current.toManifest()}`;
-  }, [caseStudy, resolvePolicyPack, consultantCaseBrief, consultantGateReady, consultantGateMissing, computeReadiness, pilotFocus, quickCountryFocus, quickBusinessTarget, activeIssuePack, quickCustomSector, quickCustomFocus, customResearchTopics, preferredOutputMode, enableFullCaseTreeMatching, fullCaseTreeMatchingSummary]);
+  }, [caseStudy, resolvePolicyPack, consultantCaseBrief, consultantGateReady, consultantGateMissing, computeReadiness, quickCountryFocus, quickBusinessTarget, activeIssuePack, quickCustomSector, customResearchTopics, preferredOutputMode, enableFullCaseTreeMatching, fullCaseTreeMatchingSummary, effectivePilotFocusText]);
 
   const buildNaturalFallbackReply = useCallback((userInput: string) => {
     const trimmed = userInput.trim();
@@ -6048,12 +6077,9 @@ Use concrete facts from the case. No template language. Write the complete repor
                       <button
                         key={focus}
                         type="button"
-                        onClick={() => {
-                          setPilotFocus(focus);
-                          syncQuickConsultantToCaseStudy('focus-button', { focus: focus.replace(/-/g, ' ') });
-                        }}
+                        onClick={() => handleTogglePilotFocus(focus)}
                         className={`text-[10px] px-1.5 py-1.5 border text-left leading-tight ${
-                          pilotFocus === focus
+                          normalizedPilotFocusSelections.includes(focus)
                             ? 'bg-blue-600 text-white border-blue-600'
                             : 'bg-white text-slate-700 border-stone-300 hover:bg-stone-50'
                         }`}
@@ -6119,7 +6145,7 @@ Use concrete facts from the case. No template language. Write the complete repor
                     <p className="text-[11px] font-semibold text-emerald-800">Live World Insights</p>
                   </div>
                   <p className="text-[10px] text-emerald-700 mb-2">
-                    News Desk Brief: {quickCustomFocus || pilotFocus.replace(/-/g, ' ')}{quickCountryFocus ? ` in ${quickCountryFocus}` : ''}{quickCustomSector || activeIssuePack ? ` — ${quickCustomSector || activeIssuePack.label}` : ''}.
+                    News Desk Brief: {effectivePilotFocusText}{quickCountryFocus ? ` in ${quickCountryFocus}` : ''}{quickCustomSector || activeIssuePack ? ` — ${quickCustomSector || activeIssuePack.label}` : ''}.
                   </p>
                   <div className="bg-white border border-emerald-200 px-2 py-2 mb-1.5">
                     <p className="text-[10px] font-semibold text-slate-800 mb-1">Live Search Feed</p>
@@ -6259,7 +6285,7 @@ Use concrete facts from the case. No template language. Write the complete repor
                           ? `${liveInsightLeads.global.title} — ${liveInsightLeads.global.snippet || `Source: ${liveInsightLeads.global.source}`}`
                           : quickCountryFocus
                           ? `Latest desk signals show policy shifts, procurement updates, and regional competition affecting ${quickCustomSector || activeIssuePack.label.toLowerCase()} activity tied to ${quickCountryFocus}.`
-                          : `Current global patterns in ${quickCustomFocus || pilotFocus.replace(/-/g, ' ')} — policy shifts, emerging opportunities, and regional competition now shaping market entry timing.`}
+                          : `Current global patterns in ${effectivePilotFocusText} — policy shifts, emerging opportunities, and regional competition now shaping market entry timing.`}
                       </p>
                     </div>
 
@@ -6302,7 +6328,7 @@ Use concrete facts from the case. No template language. Write the complete repor
                           : quickCountryFocus && quickBusinessTarget
                           ? `Competitive scan tracks active players in ${quickCustomSector || activeIssuePack.label.toLowerCase()} in ${quickCountryFocus}, what ${quickBusinessTarget} currently prioritize, and where opportunity gaps remain.`
                           : quickCountryFocus
-                            ? `Market gaps, competitor movement, and partnership openings in ${quickCountryFocus} for ${quickCustomFocus || pilotFocus.replace(/-/g, ' ')} are now being monitored.`
+                            ? `Market gaps, competitor movement, and partnership openings in ${quickCountryFocus} for ${effectivePilotFocusText} are now being monitored.`
                             : 'Add your country and business target above to see competitive landscape and opportunity gaps.'}
                       </p>
                     </div>
@@ -6331,7 +6357,7 @@ Use concrete facts from the case. No template language. Write the complete repor
                           <span className="text-emerald-700">★</span> What This Means for You
                         </p>
                         <p className="text-[10px] text-emerald-800">
-                          Based on your focus on <strong>{quickCustomFocus || pilotFocus.replace(/-/g, ' ')}</strong>
+                          Based on your focus on <strong>{effectivePilotFocusText}</strong>
                           {quickCountryFocus ? <> in <strong>{quickCountryFocus}</strong></> : ''}
                           {quickBusinessTarget ? <> targeting <strong>{quickBusinessTarget}</strong></> : ''}
                           , this report stream prioritizes the most decision-relevant policy, finance, compliance, and competitive shifts and feeds them into your consultant responses and draft documents.
@@ -6378,7 +6404,7 @@ Use concrete facts from the case. No template language. Write the complete repor
                   <div className="mt-1 space-y-1">
                     {quickCountryFocus ? (
                       <>
-                        <p className="text-[10px] text-slate-600">• Government grants and incentives available for {quickCustomFocus || pilotFocus.replace(/-/g, ' ')} in {quickCountryFocus}</p>
+                        <p className="text-[10px] text-slate-600">• Government grants and incentives available for {effectivePilotFocusText} in {quickCountryFocus}</p>
                         <p className="text-[10px] text-slate-600">• Development bank and multilateral finance programs in the region</p>
                         <p className="text-[10px] text-slate-600">• Trade support and export assistance programs you may qualify for</p>
                         {(quickCustomSector || activeIssuePack.label) && <p className="text-[10px] text-slate-600">• Sector-specific funding for {quickCustomSector || activeIssuePack.label}</p>}
@@ -6395,7 +6421,7 @@ Use concrete facts from the case. No template language. Write the complete repor
                     <span className="text-amber-600">◆</span> Strategic Considerations
                   </p>
                   <div className="mt-1 space-y-1">
-                    {(quickCustomFocus || pilotFocus !== 'new-markets') ? (
+                    {(quickCustomFocus.trim() || normalizedPilotFocusSelections.length > 0) ? (
                       <>
                         <p className="text-[10px] text-slate-600">• Key stakeholders and decision-makers you should be aware of</p>
                         <p className="text-[10px] text-slate-600">• Timing considerations — political cycles, budget periods, seasonal factors</p>
@@ -6510,7 +6536,7 @@ Use concrete facts from the case. No template language. Write the complete repor
                 {/* Case summary */}
                 <div className="border border-stone-200 bg-slate-50 p-2">
                   <p className="text-[11px] text-slate-600">
-                    Researching: <strong>{quickCustomFocus || pilotFocus.replace(/-/g, ' ')}</strong>
+                    Researching: <strong>{effectivePilotFocusText}</strong>
                     {quickCountryFocus ? ` • ${quickCountryFocus}` : ''}
                     {quickBusinessTarget ? ` • ${quickBusinessTarget}` : ''}
                     {activeIssuePack.label ? ` • ${activeIssuePack.label}` : ''}
