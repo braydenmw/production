@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ArrowRight, Shield, Users, Zap, CheckCircle2, Scale, Building2, Globe, Mail, Phone, Briefcase, TrendingUp, FileCheck, GitBranch, X, Info } from 'lucide-react';
 import DocumentModal, { type DocumentType } from './LegalDocuments';
-import { UnifiedBWConsultant } from './UnifiedBWConsultant';
 // OSINT search removed - using unified location research
 
 // Command Center - Complete BWGA Landing Page
@@ -325,33 +324,36 @@ const CommandCenter: React.FC<CommandCenterProps> = ({ onEnterPlatform, onOpenGl
             {/* OUR ORIGIN */}
             <section className="py-10 px-4 bg-white">
                 <div className="max-w-5xl mx-auto">
-                    <h2 className="text-2xl md:text-3xl font-light mb-6 text-slate-900">The Story of BWGA</h2>
+                    <h2 className="text-2xl md:text-3xl font-light mb-6 text-slate-900">The Story of Regional Cities</h2>
                     <div className="grid md:grid-cols-2 gap-x-8 text-base text-slate-700 leading-relaxed text-justify mb-8">
                         <div className="space-y-3">
                             <p>
-                                BWGA wasn&rsquo;t founded in a glass skyscraper in New York or London. It was born on the edge of the developing world, in a small coastal city where the gap between potential and opportunity is painfully clear.
+                                Regional cities are not secondary economies. They carry national supply chains, food systems, energy corridors, logistics routes, tourism, and workforce growth that keep national and global markets moving.
                             </p>
                             <p>
-                                <strong>BW Global Advisory (BWGA)</strong> is an advisory practice built from firsthand experience in regional communities &mdash; places that hold real economic potential but lack the tools, connections, and institutional visibility to compete for global investment on equal footing.
+                                Yet they are often misunderstood as peripheral markets &mdash; high on potential, low on visibility. Capital tends to flow to familiar metros while regional opportunities are under-scored, under-financed, or evaluated with models built for entirely different contexts.
                             </p>
                             <p>
-                                We watched regional leaders &mdash; mayors, entrepreneurs, councils &mdash; work tirelessly to attract investment. They had the vision, the drive, the raw assets.
-                            </p>
-                            <p>
-                                From that observation came the question: what if you could build a system that internalised all of that methodology &mdash; 60+ years of documented practice across 150 countries &mdash; and made it available to anyone, anywhere, instantly?
+                                For years, there has been no single system fully dedicated to regional development, investment, and growth across jurisdictions. Teams have had to assemble fragmented reports, consultants, and disconnected tools under time pressure.
                             </p>
                         </div>
                         <div className="space-y-3 mt-3 md:mt-0">
                             <p>
-                                The practice exists because of a simple observation: <strong>every &ldquo;new idea&rdquo; is old somewhere.</strong> The 1963 Philippine Integrated Socioeconomic Plan, the 1978 Region 7 Five-Year Development Plan, Special Economic Zones across 80+ countries, PPP frameworks across 150+ nations &mdash; they all follow the same methodology. Growth poles. Investment incentives. Sectoral planning. Infrastructure corridors. The names update. The practice persists. <strong>The past is the solution library.</strong>
+                                The pattern is consistent: <strong>every &ldquo;new idea&rdquo; is old somewhere.</strong> Across SEZs, PPPs, growth corridors, and sector strategies, the underlying principles repeat. <strong>The past is the solution library.</strong>
                             </p>
                             <p>
-                                <strong>BWGA Ai is the answer.</strong> It is the technology arm of BW Global Advisory. Not a chatbot. Not a search engine. Not a lookup table. It is a complete digital boardroom &mdash; a system that reasons through investment, trade, and development problems using the same depth of analysis that previously required a team of senior consultants, weeks of research, and hundreds of thousands of dollars.
+                                That gap is why BWGA Ai exists. <strong>BWGA Ai is BWGA&rsquo;s technology platform</strong> &mdash; a digital boardroom purpose-built for regional decision-making, applying institutional-grade reasoning to investment, trade, and development without the normal time and cost barrier.
+                            </p>
+                            <p>
+                                It combines structured intake, multi-layer analysis, and document-grade output so mayors, agencies, founders, and boards can move from uncertainty to execution-ready direction with confidence.
                             </p>
                         </div>
                     </div>
                     <p className="text-base text-slate-700 leading-relaxed text-justify mb-8">
-                        So we built the bridge. BWGA Ai takes what already worked &mdash; in Shenzhen&rsquo;s special economic zones, in Penang&rsquo;s electronics corridor, in Medell&iacute;n&rsquo;s urban reinvention, in Rwanda&rsquo;s governance transformation, in Estonia&rsquo;s digital-first state &mdash; and distils it into a system that any regional council, any investment agency, any government body can use today. Not by copying those places, but by extracting the transferable principles: the sequencing, the stakeholder architecture, the policy triggers, the conditions that let a place transform. The knowledge has always existed. The problem was that it sat locked inside decades of reports, across continents, in languages and frameworks most practitioners never see. This system makes it accessible, synthesised, and actionable &mdash; from first question to boardroom-ready output.
+                        We built the bridge by turning proven playbooks into one usable system dedicated to regional growth. BWGA Ai doesn&rsquo;t copy other places &mdash; it extracts transferable principles (sequencing, stakeholder architecture, policy triggers, and execution conditions) and applies them to your context. The result is clear, defensible output from first question to boardroom-ready decision support.
+                    </p>
+                    <p className="text-base text-slate-700 leading-relaxed text-justify mb-8">
+                        In practice, that means evidence-linked recommendations, clearer risk visibility, and faster alignment between public and private stakeholders &mdash; so regional decisions are not only smarter, but easier to defend, fund, and execute.
                     </p>
 
                     {/* Personal Story  -  Brayden Walls */}
@@ -366,10 +368,10 @@ const CommandCenter: React.FC<CommandCenterProps> = ({ onEnterPlatform, onOpenGl
                             <h3 className="text-2xl font-semibold text-white mb-4">Brayden Walls &mdash; Founder &amp; Sole Developer</h3>
                             
                             <p className="text-base text-slate-200 leading-relaxed mb-4">
-                                I spent 16 months living and building in the Philippines &mdash; on the ground, in communities where economic potential is enormous but the tools to unlock it don&rsquo;t exist. I watched the same pattern everywhere: regional governments unable to speak investor language, businesses entering markets with incomplete information, meetings that went nowhere because expectations didn&rsquo;t match reality.
+                                I spent 16 months living and building in the Philippines, where I repeatedly saw the same gap: strong local potential, but weak access to investor-grade tools and decision frameworks.
                             </p>
                             <p className="text-base text-slate-200 leading-relaxed mb-6">
-                                So I taught myself to code and spent over a year turning every economic development framework I could find into software. What came out isn&rsquo;t a chatbot &mdash; it&rsquo;s a reasoning system that thinks through problems the way a team of senior consultants would, but faster, cheaper, and available to anyone.
+                                I taught myself to code and converted economic development frameworks into software. The result isn&rsquo;t a chatbot &mdash; it&rsquo;s a reasoning system designed to deliver consultant-level strategic analysis faster, cheaper, and at wider scale.
                             </p>
 
                             <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-sm p-6">
@@ -391,18 +393,18 @@ const CommandCenter: React.FC<CommandCenterProps> = ({ onEnterPlatform, onOpenGl
                 <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-blue-50/40 via-transparent to-transparent" />
                 <div className="relative max-w-4xl mx-auto">
                     <h2 className="text-4xl md:text-5xl font-light text-center leading-tight mb-4 text-slate-900">
-                        BW Nexus AI &mdash; An Institutional Intelligence Operating System
+                        BWGA Ai &mdash; An Institutional Intelligence Operating System
                     </h2>
                     <p className="text-center text-lg md:text-xl font-light mb-12 max-w-3xl mx-auto text-slate-600">
-                        I built this because the tools that exist weren&rsquo;t built for the problems I kept running into. This is a <span className="text-blue-600 font-normal">full operating system for strategic decisions</span> &mdash; part research analyst, part debate room, part document engine. You describe your situation. It builds the case. You walk away with something defensible.
+                        Regional cities are too important to be managed with fragmented tooling. I built this because the tools that existed weren&rsquo;t built for the problems I kept seeing in real regional decision environments. This is a <span className="text-blue-600 font-normal">full operating system for strategic decisions</span> &mdash; part research analyst, part debate room, part document engine. You describe your situation. It builds the case. You walk away with something defensible.
                     </p>
                     <div id="brain" className="relative -top-28" />
                     <h2 className="text-3xl md:text-4xl font-bold text-slate-900 leading-tight mb-6">
-                        What Is BW Nexus AI &mdash; and What Is the BW Consultant?
+                        What Is BWGA Ai &mdash; and What Is the BW Consultant?
                     </h2>
                     <div className="space-y-4 mb-10">
                         <p className="text-lg text-slate-700 leading-relaxed text-justify">
-                            BW Nexus AI is the technology platform of BW Global Advisory. Think of it as a full intelligence operating system &mdash; not a tool you open, paste something into, and get a paragraph back. It is a system you <em>work through</em>. You bring your situation. It brings the analysis.
+                            BWGA Ai is the technology platform of BW Global Advisory. Think of it as a full intelligence operating system &mdash; not a tool you open, paste something into, and get a paragraph back. It is a system you <em>work through</em>. You bring your situation. It brings the analysis.
                         </p>
                         <p className="text-lg text-slate-700 leading-relaxed text-justify">
                             The <strong className="text-slate-900">BW Consultant</strong> is the front door to that system. You have a conversation with it &mdash; describe what you&rsquo;re dealing with, what you&rsquo;re trying to achieve, where you&rsquo;re operating. As you type, the system is already building your case. It detects signals, identifies gaps, models your jurisdiction, and decides which questions matter most. By the time you&rsquo;re mid-conversation, a full institutional case study is forming behind the scenes.
@@ -443,7 +445,7 @@ const CommandCenter: React.FC<CommandCenterProps> = ({ onEnterPlatform, onOpenGl
                             </div>
                             <div className="p-6">
                                 <p className="text-sm text-slate-700 leading-relaxed text-justify">
-                                    BW Nexus AI runs your situation through 46+ proprietary formulas &mdash; not estimates, not generated text, but calculated scores with traceable inputs. Every output comes with a method trail: what was used, how confident it is, and which assumptions were made. Run it again tomorrow with the same inputs and you get the same answer. That is the standard required for committee-ready, board-defensible strategic outputs.
+                                    BWGA Ai runs your situation through 46+ proprietary formulas &mdash; not estimates, not generated text, but calculated scores with traceable inputs. Every output comes with a method trail: what was used, how confident it is, and which assumptions were made. Run it again tomorrow with the same inputs and you get the same answer. That is the standard required for committee-ready, board-defensible strategic outputs.
                                 </p>
                             </div>
                         </div>

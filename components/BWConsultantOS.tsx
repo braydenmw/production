@@ -704,6 +704,7 @@ const BWConsultantOS: React.FC<BWConsultantOSProps> = ({ onOpenWorkspace, embedd
   const fileInputRef = useRef<HTMLInputElement>(null);
   const learningProfileInputRef = useRef<HTMLInputElement>(null);
   const quickSyncSignatureRef = useRef('');
+  const strategicApplySignatureRef = useRef('');
   
   // Workspace modal
   const [showWorkspaceModal, setShowWorkspaceModal] = useState(false);
@@ -724,6 +725,10 @@ const BWConsultantOS: React.FC<BWConsultantOSProps> = ({ onOpenWorkspace, embedd
   const [quickCustomSector, setQuickCustomSector] = useState('');
   const [quickCustomFocus, setQuickCustomFocus] = useState('');
   const [quickDraftLines, setQuickDraftLines] = useState('');
+  const [strategicAutoApplyEnabled, setStrategicAutoApplyEnabled] = useState(true);
+  const [strategicApplyLoading, setStrategicApplyLoading] = useState(false);
+  const [strategicApplyError, setStrategicApplyError] = useState('');
+  const [strategicApplyUpdatedAt, setStrategicApplyUpdatedAt] = useState('');
   const [liveInsightQuery, setLiveInsightQuery] = useState('');
   const [liveInsightLoading, setLiveInsightLoading] = useState(false);
   const [liveInsightError, setLiveInsightError] = useState('');
@@ -1779,6 +1784,163 @@ const BWConsultantOS: React.FC<BWConsultantOSProps> = ({ onOpenWorkspace, embedd
       ]);
     }
   }, [quickCountryFocus, quickBusinessTarget, effectivePilotFocusText, quickCustomSector, activeIssuePack.label]);
+
+  const applyStrategicFactors = useCallback(async (
+    trigger: 'auto-intake' | 'manual'
+  ) => {
+    const country = quickCountryFocus.trim();
+    const businessTarget = quickBusinessTarget.trim();
+    const focus = effectivePilotFocusText.trim();
+    const sector = (quickCustomSector.trim() || activeIssuePack.label).trim();
+
+    if (!country && !businessTarget && focus.length < 4 && sector.length < 3) {
+      return;
+    }
+
+    const message = [
+      `Quick Consultant strategic intake: ${focus || 'General expansion objective'}`,
+      country ? `Country/region: ${country}` : '',
+      businessTarget ? `Business target: ${businessTarget}` : '',
+      `Sector: ${sector}`
+    ].filter(Boolean).join(' | ');
+
+    const signature = JSON.stringify({
+      message,
+      country,
+      businessTarget,
+      focus,
+      sector
+    });
+
+    if (trigger !== 'manual' && strategicApplySignatureRef.current === signature) {
+      return;
+    }
+    strategicApplySignatureRef.current = signature;
+
+    setStrategicApplyLoading(true);
+    setStrategicApplyError('');
+
+    try {
+      const contextCaseStudy: CaseStudy = {
+        ...caseStudy,
+        country: country || caseStudy.country,
+        jurisdiction: caseStudy.jurisdiction || country || caseStudy.jurisdiction,
+        targetAudience: businessTarget || caseStudy.targetAudience,
+        situationType: focus || caseStudy.situationType,
+        organizationType: caseStudy.organizationType || sector || caseStudy.organizationType
+      };
+
+      const [overlookedRes, strategicRes] = await Promise.all([
+        fetch('/api/ai/consultant/overlooked-scan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message, context: { caseStudy: contextCaseStudy } })
+        }),
+        fetch('/api/ai/consultant/strategic-pipeline', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message, context: { caseStudy: contextCaseStudy } })
+        })
+      ]);
+
+      if (!overlookedRes.ok || !strategicRes.ok) {
+        throw new Error('Strategic services did not return success status.');
+      }
+
+      const overlookedData = await overlookedRes.json();
+      const strategicData = await strategicRes.json();
+      const overlooked = overlookedData?.overlookedIntelligence as OverlookedIntelligence | undefined;
+      const strategic = strategicData?.strategicPipeline as StrategicPipeline | undefined;
+
+      if (overlooked) setOverlookedIntelligence(overlooked);
+      if (strategic) setStrategicPipeline(strategic);
+
+      const appliedAt = new Date().toISOString();
+      setStrategicApplyUpdatedAt(appliedAt);
+
+      setCaseStudy((prev) => {
+        const nextContext = [...prev.additionalContext];
+        const readinessLine = `Strategic factors applied (${trigger}): readiness=${typeof strategic?.readinessScore === 'number' ? strategic.readinessScore : 'n/a'}%; evidence=${typeof overlooked?.evidenceCredibility === 'number' ? overlooked.evidenceCredibility : 'n/a'}%; gap=${typeof overlooked?.perceptionRealityGap === 'number' ? overlooked.perceptionRealityGap : 'n/a'}`;
+        if (!nextContext.includes(readinessLine)) {
+          nextContext.push(readinessLine);
+        }
+
+        const topRegionalLines = (overlooked?.topRegionalOpportunities || [])
+          .slice(0, 2)
+          .map((item) => `Overlooked regional target: ${item.place} (score ${item.score})`);
+        topRegionalLines.forEach((line) => {
+          if (!nextContext.includes(line)) nextContext.push(line);
+        });
+
+        const strategicHintLines = [
+          ...(strategic?.engagementDraftHints?.governmentLetterFocus || []),
+          ...(strategic?.engagementDraftHints?.partnerLetterFocus || []),
+          ...(strategic?.engagementDraftHints?.investorBriefFocus || [])
+        ].slice(0, 3).map((line) => `Strategic draft hint: ${line}`);
+
+        strategicHintLines.forEach((line) => {
+          if (!nextContext.includes(line)) nextContext.push(line);
+        });
+
+        if (nextContext.length === prev.additionalContext.length) {
+          return prev;
+        }
+
+        return {
+          ...prev,
+          additionalContext: nextContext
+        };
+      });
+
+      if (trigger === 'manual') {
+        setMessages((prev) => ([
+          ...prev,
+          {
+            id: crypto.randomUUID(),
+            role: 'system',
+            content: `Strategic factors applied to Quick Consultant inputs. ${strategic?.recommendedPath?.targetRegion ? `Top regional target: ${strategic.recommendedPath.targetRegion}.` : ''}`,
+            timestamp: new Date(),
+            phase: 'analysis'
+          }
+        ]));
+      }
+    } catch (error) {
+      console.warn('Failed to apply strategic factors:', error);
+      setStrategicApplyError('Strategic factor application failed. Please retry.');
+    } finally {
+      setStrategicApplyLoading(false);
+    }
+  }, [quickCountryFocus, quickBusinessTarget, effectivePilotFocusText, quickCustomSector, activeIssuePack.label, caseStudy]);
+
+  useEffect(() => {
+    if (!strategicAutoApplyEnabled) return;
+
+    const country = quickCountryFocus.trim();
+    const businessTarget = quickBusinessTarget.trim();
+    const focus = effectivePilotFocusText.trim();
+    const sector = (quickCustomSector.trim() || activeIssuePack.label).trim();
+    const hasStrategicInputs = country.length > 0 || businessTarget.length > 0 || focus.length >= 4 || sector.length >= 4;
+
+    if (!hasStrategicInputs) return;
+
+    const timer = window.setTimeout(() => {
+      syncQuickConsultantToCaseStudy('auto-intake');
+      void applyStrategicFactors('auto-intake');
+    }, 900);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [
+    strategicAutoApplyEnabled,
+    quickCountryFocus,
+    quickBusinessTarget,
+    effectivePilotFocusText,
+    quickCustomSector,
+    activeIssuePack.label,
+    syncQuickConsultantToCaseStudy,
+    applyStrategicFactors
+  ]);
 
   const handleTogglePilotFocus = useCallback((focus: PilotModeFocus) => {
     const nextSelections = pilotFocusSelections.includes(focus)
@@ -6353,6 +6515,35 @@ Use concrete facts from the case. No template language. Write the complete repor
                 <p className="mt-1 text-[11px] text-slate-600">
                   Tell us where you're focused and who you want to work with. We'll surface relevant government programs, development finance, and regional intelligence to strengthen your case.
                 </p>
+                <div className="mt-2 border border-blue-200 bg-blue-50 p-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <label className="flex items-center gap-1.5 text-[10px] text-slate-700">
+                      <input
+                        type="checkbox"
+                        checked={strategicAutoApplyEnabled}
+                        onChange={(e) => setStrategicAutoApplyEnabled(e.target.checked)}
+                      />
+                      Auto-apply strategic factors while typing
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        syncQuickConsultantToCaseStudy('manual-sync');
+                        void applyStrategicFactors('manual');
+                      }}
+                      disabled={strategicApplyLoading}
+                      className="px-2 py-1 text-[10px] border border-blue-300 bg-white text-blue-700 hover:bg-blue-100 disabled:opacity-60"
+                    >
+                      {strategicApplyLoading ? 'Applying…' : 'Apply Strategic Factors'}
+                    </button>
+                  </div>
+                  {strategicApplyUpdatedAt && (
+                    <p className="mt-1 text-[9px] text-blue-700">Last strategic apply: {new Date(strategicApplyUpdatedAt).toLocaleString()}</p>
+                  )}
+                  {strategicApplyError && (
+                    <p className="mt-1 text-[9px] text-red-600">{strategicApplyError}</p>
+                  )}
+                </div>
               </div>
 
               <div className="flex-1 overflow-y-auto">
