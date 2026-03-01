@@ -14,6 +14,7 @@ import {
   getAugmentedAITools,
   getRecommendedAugmentedToolsForMode
 } from './augmentedAISupport.js';
+import { buildOverlookedIntelligenceSnapshot } from './overlookedFirstEngine.js';
 
 const router = Router();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -461,6 +462,9 @@ const parseProviderOrder = (input: unknown): ConsultantProvider[] => {
 const buildConsultantPrompt = (message: string, intent: ConsultantIntent, context?: unknown, systemPrompt?: string) => `
 ${deriveConsultantCapabilityProfile(message, context).brief}
 
+OVERLOOKED-FIRST INTELLIGENCE:
+${JSON.stringify(buildOverlookedIntelligenceSnapshot(message, context), null, 2)}
+
 INTENT: ${intent}
 INTENT DIRECTIVE: ${buildIntentDirective(intent)}
 
@@ -750,6 +754,7 @@ router.post('/consultant', async (req: Request, res: Response) => {
     const capabilityProfile = deriveConsultantCapabilityProfile(sanitizedMessage, sanitizedContextResult.context);
     const augmentedSnapshot = buildAugmentedAISnapshot(capabilityProfile);
     const recommendedAugmentedTools = getRecommendedAugmentedToolsForMode(capabilityProfile.mode);
+    const overlookedIntelligence = buildOverlookedIntelligenceSnapshot(sanitizedMessage, sanitizedContextResult.context);
     if (shouldRequireOutputClarification(sanitizedMessage, intent)) {
       const clarificationText = buildOutputClarificationResponse();
 
@@ -769,6 +774,8 @@ router.post('/consultant', async (req: Request, res: Response) => {
         capabilityTags: capabilityProfile.capabilityTags,
         unresolvedGapCount: capabilityProfile.gaps.length,
         augmentedModel: augmentedSnapshot.model,
+        evidenceCredibility: overlookedIntelligence.evidenceCredibility,
+        perceptionRealityGap: overlookedIntelligence.perceptionRealityGap,
         replayHash,
         replayStored: false
       });
@@ -791,6 +798,7 @@ router.post('/consultant', async (req: Request, res: Response) => {
         })),
         augmentedAI: augmentedSnapshot,
         recommendedTools: recommendedAugmentedTools,
+        overlookedIntelligence,
         replayHash,
         replayAvailable: false
       });
@@ -830,6 +838,8 @@ router.post('/consultant', async (req: Request, res: Response) => {
       capabilityTags: capabilityProfile.capabilityTags,
       unresolvedGapCount: capabilityProfile.gaps.length,
       augmentedModel: augmentedSnapshot.model,
+      evidenceCredibility: overlookedIntelligence.evidenceCredibility,
+      perceptionRealityGap: overlookedIntelligence.perceptionRealityGap,
       replayHash,
       replayStored: CONSULTANT_REPLAY_STORE_PAYLOAD
     });
@@ -852,6 +862,7 @@ router.post('/consultant', async (req: Request, res: Response) => {
       })),
       augmentedAI: augmentedSnapshot,
       recommendedTools: recommendedAugmentedTools,
+      overlookedIntelligence,
       replayHash,
       replayAvailable: CONSULTANT_REPLAY_STORE_PAYLOAD
     });
@@ -899,6 +910,18 @@ router.post('/augmented-ai/snapshot', (req: Request, res: Response) => {
     profile,
     snapshot,
     recommendedTools
+  });
+});
+
+router.post('/consultant/overlooked-scan', (req: Request, res: Response) => {
+  const { message, context } = req.body ?? {};
+  if (!message || typeof message !== 'string') {
+    return res.status(400).json({ error: 'message is required' });
+  }
+
+  const overlookedIntelligence = buildOverlookedIntelligenceSnapshot(message, context);
+  return res.json({
+    overlookedIntelligence
   });
 });
 
