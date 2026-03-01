@@ -16,7 +16,6 @@ import {
   Globe, FileCheck, PenTool, Download, Copy, Check,
   HelpCircle, ChevronRight, BookOpen,
   ThumbsUp, ThumbsDown, Languages, Zap, AlertTriangle, CheckCircle2, PlayCircle,
-  Volume2, VolumeX
 } from 'lucide-react';
 import { OutcomeLearningService } from '../services/OutcomeLearningService';
 import { LiveDataService } from '../services/LiveDataService';
@@ -748,7 +747,7 @@ const BWConsultantOS: React.FC<BWConsultantOSProps> = ({ onOpenWorkspace, embedd
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isStreamingResponse, setIsStreamingResponse] = useState(false);
-  const [voiceEnabled, setVoiceEnabled] = useState(true);
+  const [voiceEnabled] = useState(true);
   const voiceSpeakingRef = useRef(false);
   const displayedMsgIds = useRef<Set<string>>(new Set());
   const spokenMsgIds = useRef<Set<string>>(new Set());
@@ -1243,41 +1242,6 @@ const BWConsultantOS: React.FC<BWConsultantOSProps> = ({ onOpenWorkspace, embedd
     if (liveDraftReadiness >= 45) return 'Case Build in Progress';
     return 'Building Initial Draft';
   }, [isCaseStudyComplete, liveDraftReadiness]);
-
-  const liveDraftDocumentTargets = useMemo(() => {
-    const selectedTitles = selectedDocs
-      .map((id) => recommendedDocs.find((doc) => doc.id === id)?.title)
-      .filter((title): title is string => Boolean(title));
-
-    if (selectedTitles.length > 0) {
-      return selectedTitles;
-    }
-
-    const recommendedTitles = recommendedDocs.slice(0, 6).map((doc) => doc.title);
-    if (recommendedTitles.length > 0) {
-      return recommendedTitles;
-    }
-
-    return [
-      'Executive Summary',
-      'Partnership Assessment',
-      'Risk Report',
-      'Letter of Intent'
-    ];
-  }, [selectedDocs, recommendedDocs]);
-
-  const liveDraftEvidenceSources = useMemo(() => {
-    const uploaded = caseStudy.uploadedDocuments.slice(0, 6).map((doc) => `Uploaded file: ${doc}`);
-    const contextNotes = caseStudy.additionalContext
-      .slice(-4)
-      .map((note) => `Conversation note: ${note.slice(0, 140)}${note.length > 140 ? '…' : ''}`);
-    const insightNotes = caseStudy.aiInsights
-      .slice(-2)
-      .map((insight) => `System insight: ${insight.slice(0, 140)}${insight.length > 140 ? '…' : ''}`);
-
-    const merged = [...uploaded, ...contextNotes, ...insightNotes];
-    return merged.length > 0 ? merged : ['User-provided conversation context in this session'];
-  }, [caseStudy]);
 
   const fullCaseTreeMatchingSignals = useMemo(() => {
     if (!enableFullCaseTreeMatching) return [] as string[];
@@ -3751,7 +3715,6 @@ ${agentRegistry.current.toManifest()}`;
     enableFullCaseTreeMatching,
     activeIssuePack.label,
     queueAction,
-    augmentedAISnapshot,
     voiceEnabled
   ]);
 
