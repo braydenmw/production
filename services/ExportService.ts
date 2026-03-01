@@ -1,7 +1,119 @@
-﻿import { ReportPayload } from '../types';
+﻿import jsPDF from 'jspdf';
+import { ReportPayload } from '../types';
 import { GovernanceService } from './GovernanceService';
 import { ReportOrchestrator } from './ReportOrchestrator';
 import { exportToDocx, type DocxDocumentMeta } from './DocxExporter';
+
+/** Build a real PDF Blob from Markdown text using jsPDF. */
+function buildPdfFromMarkdown(markdown: string, meta: DocxDocumentMeta): Blob {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const pageW = doc.internal.pageSize.getWidth();
+  const margin = 15;
+  const usableW = pageW - margin * 2;
+  let y = margin;
+
+  // Title page header
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(18);
+  doc.setTextColor(30, 58, 100);
+  doc.text(meta.title, margin, y, { maxWidth: usableW });
+  y += 10;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.setTextColor(80, 80, 80);
+  doc.text(`Prepared for: ${meta.preparedFor}  |  By: ${meta.preparedBy}`, margin, y);
+  y += 6;
+  doc.text(`Date: ${meta.date}  |  Report ID: ${meta.reportId}  |  ${meta.classification}`, margin, y);
+  y += 4;
+  doc.setDrawColor(200, 200, 200);
+  doc.line(margin, y, pageW - margin, y);
+  y += 6;
+
+  const lines = markdown.split('\n');
+  for (const raw of lines) {
+    const line = raw.trimEnd();
+
+    if (y > doc.internal.pageSize.getHeight() - margin) {
+      doc.addPage();
+      y = margin;
+    }
+
+    if (line.startsWith('## ')) {
+      y += 4;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(13);
+      doc.setTextColor(30, 58, 100);
+      doc.text(line.replace(/^##\s+/, ''), margin, y);
+      y += 7;
+    } else if (line.startsWith('### ')) {
+      y += 2;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.setTextColor(50, 80, 130);
+      doc.text(line.replace(/^###\s+/, ''), margin, y);
+      y += 6;
+    } else if (line.startsWith('# ')) {
+      // skip — already in header
+    } else if (line.startsWith('- ') || line.startsWith('* ')) {
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(40, 40, 40);
+      const bullet = '•  ' + line.replace(/^[-*]\s+/, '');
+      const wrapped = doc.splitTextToSize(bullet, usableW - 5);
+      for (const wl of wrapped) {
+        if (y > doc.internal.pageSize.getHeight() - margin) { doc.addPage(); y = margin; }
+        doc.text(wl, margin + 4, y);
+        y += 5;
+      }
+    } else if (line.startsWith('**') && line.endsWith('**')) {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.setTextColor(40, 40, 40);
+      doc.text(line.replace(/\*\*/g, ''), margin, y);
+      y += 5;
+    } else if (line.startsWith('|')) {
+      // Simple table — treat each row as plain text
+      doc.setFont('courier', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(40, 40, 40);
+      const rowText = line.replace(/\|/g, '  ').replace(/\s{2,}/g, '  ').trim();
+      const wrapped = doc.splitTextToSize(rowText, usableW);
+      for (const wl of wrapped) {
+        if (y > doc.internal.pageSize.getHeight() - margin) { doc.addPage(); y = margin; }
+        doc.text(wl, margin, y);
+        y += 4;
+      }
+    } else if (line === '' || line === '---') {
+      y += 3;
+    } else {
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(40, 40, 40);
+      // Strip inline bold markers
+      const plain = line.replace(/\*\*(.*?)\*\*/g, '$1');
+      const wrapped = doc.splitTextToSize(plain, usableW);
+      for (const wl of wrapped) {
+        if (y > doc.internal.pageSize.getHeight() - margin) { doc.addPage(); y = margin; }
+        doc.text(wl, margin, y);
+        y += 5;
+      }
+    }
+  }
+
+  // Footer on each page
+  const totalPages = (doc.internal as unknown as { getNumberOfPages(): number }).getNumberOfPages();
+  for (let p = 1; p <= totalPages; p++) {
+    doc.setPage(p);
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(8);
+    doc.setTextColor(150, 150, 150);
+    doc.text(`${meta.classification} — ${meta.preparedBy}   |   Page ${p} of ${totalPages}`,
+      margin, doc.internal.pageSize.getHeight() - 8);
+  }
+
+  return doc.output('blob');
+}
 
 export type ExportFormat = 'pdf' | 'docx' | 'ppt' | 'dashboard' | 'interactive';
 
@@ -224,11 +336,9 @@ export class ExportService {
         break;
       }
       case 'pdf': {
-        // Generate DOCX as the best-fidelity offline format available
-        // (true PDF requires a server-side renderer; DOCX opens natively in most tools)
-        const blob = await exportToDocx(markdown, meta);
-        const fname = `${reportId}-report-${timestamp}.docx`;
-        downloadedFilename = downloadBlob(blob, fname);
+        const pdfBlob = buildPdfFromMarkdown(markdown, meta);
+        const fname = `${reportId}-report-${timestamp}.pdf`;
+        downloadedFilename = downloadBlob(pdfBlob, fname);
         break;
       }
       case 'ppt':

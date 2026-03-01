@@ -13,6 +13,10 @@ import UserManual from './components/UserManual';
 import CommandCenter from './components/CommandCenter';
 import BWConsultantOS from './components/BWConsultantOS.tsx';
 import GlobalLocationIntelligence from './components/GlobalLocationIntelligence.tsx';
+import AdminDashboard from './components/AdminDashboard';
+import { Gateway } from './components/Gateway';
+import MatchmakingEngine from './components/MatchmakingEngine';
+import DocumentGenerationSuite from './components/DocumentGenerationSuite';
 import useEscapeKey from './hooks/useEscapeKey';
 import { generateCopilotInsights, generateReportSectionStream } from './services/geminiService';
 import { config } from './services/config';
@@ -47,7 +51,7 @@ const initialReportData: ReportData = {
   risks: { ...initialSection, id: 'risk', title: 'Risk Mitigation Strategy' },
 };
 
-type ViewMode = 'main' | 'user-manual' | 'command-center' | 'consultant-os' | 'report-generator' | 'global-location-intel';
+type ViewMode = 'main' | 'user-manual' | 'command-center' | 'consultant-os' | 'report-generator' | 'global-location-intel' | 'admin' | 'intake' | 'matchmaking' | 'documents';
 
 const App: React.FC = () => {
     // --- STATE ---
@@ -668,6 +672,47 @@ const App: React.FC = () => {
                         onOpenCommandCenter={() => setViewMode('command-center')}
                         pendingLocation={pendingLocationData}
                         onLocationLoaded={() => setPendingLocationData(null)}
+                    />
+                </div>
+            );
+        }
+
+        if (viewMode === 'admin') {
+            return (
+                <div className="w-full h-full overflow-y-auto">
+                    <AdminDashboard />
+                </div>
+            );
+        }
+
+        if (viewMode === 'intake') {
+            return (
+                <div className="w-full h-full overflow-y-auto">
+                    <Gateway
+                        params={params}
+                        onUpdate={setParams}
+                        onComplete={() => setViewMode('consultant-os')}
+                    />
+                </div>
+            );
+        }
+
+        if (viewMode === 'matchmaking') {
+            return (
+                <div className="w-full h-full overflow-y-auto">
+                    <MatchmakingEngine params={params} autoRun />
+                </div>
+            );
+        }
+
+        if (viewMode === 'documents') {
+            return (
+                <div className="w-full h-full overflow-y-auto">
+                    <DocumentGenerationSuite
+                        entityName={params.organizationName || undefined}
+                        targetMarket={params.country || undefined}
+                        reportParams={params}
+                        reportData={reportData}
                     />
                 </div>
             );
