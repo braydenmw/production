@@ -16,6 +16,7 @@ import {
   Globe, FileCheck, PenTool, Download, Copy, Check,
   HelpCircle, ChevronRight, BookOpen,
   ThumbsUp, ThumbsDown, Languages, Zap, AlertTriangle, CheckCircle2, PlayCircle,
+  Mic, MicOff,
 } from 'lucide-react';
 import { OutcomeLearningService } from '../services/OutcomeLearningService';
 import { LiveDataService } from '../services/LiveDataService';
@@ -751,6 +752,8 @@ const BWConsultantOS: React.FC<BWConsultantOSProps> = ({ onOpenWorkspace, embedd
   const voiceSpeakingRef = useRef(false);
   const displayedMsgIds = useRef<Set<string>>(new Set());
   const spokenMsgIds = useRef<Set<string>>(new Set());
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
   // Preload browser voices (Chrome loads them async)
   useEffect(() => {
     if (typeof window !== 'undefined' && window.speechSynthesis) {
@@ -764,6 +767,72 @@ const BWConsultantOS: React.FC<BWConsultantOSProps> = ({ onOpenWorkspace, embedd
       }
     };
   }, []);
+
+  // ── Voice Input (Speech-to-Text) ──────────────────────────────────────────
+  const toggleVoiceInput = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    const SR = (window as unknown as { SpeechRecognition?: typeof SpeechRecognition; webkitSpeechRecognition?: typeof SpeechRecognition }).SpeechRecognition
+      ?? (window as unknown as { SpeechRecognition?: typeof SpeechRecognition; webkitSpeechRecognition?: typeof SpeechRecognition }).webkitSpeechRecognition;
+    if (!SR) {
+      alert('Voice input is not supported in this browser. Please use Chrome or Edge.');
+      return;
+    }
+
+    if (isListening && recognitionRef.current) {
+      recognitionRef.current.stop();
+      return;
+    }
+
+    // Stop any ongoing speech output so the mic doesn't pick up the AI voice
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+
+    const rec = new SR();
+    recognitionRef.current = rec;
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.lang = 'en-US';
+
+    let interimTranscript = '';
+
+    rec.onstart = () => setIsListening(true);
+
+    rec.onresult = (event: SpeechRecognitionEvent) => {
+      interimTranscript = '';
+      let finalFragment = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const result = event.results[i];
+        if (result.isFinal) {
+          finalFragment += result[0].transcript;
+        } else {
+          interimTranscript += result[0].transcript;
+        }
+      }
+      if (finalFragment) {
+        setInputValue(prev => (prev.trim() ? prev.trim() + ' ' + finalFragment.trim() : finalFragment.trim()));
+        interimTranscript = '';
+      } else if (interimTranscript) {
+        // Show interim in the textarea live (will be replaced by final)
+        setInputValue(prev => {
+          const withoutInterim = prev.replace(/\[….*?\]$/, '').trimEnd();
+          return withoutInterim ? withoutInterim + ' [… ' + interimTranscript.trim() + ']' : '[… ' + interimTranscript.trim() + ']';
+        });
+      }
+    };
+
+    rec.onerror = () => {
+      setIsListening(false);
+      recognitionRef.current = null;
+    };
+
+    rec.onend = () => {
+      // Strip any leftover interim placeholder
+      setInputValue(prev => prev.replace(/\s*\[….*?\]$/, '').trim());
+      setIsListening(false);
+      recognitionRef.current = null;
+    };
+
+    rec.start();
+  }, [isListening]);
   const [reactiveDraftStatus, setReactiveDraftStatus] = useState('');
   const [reactiveDraftHint, setReactiveDraftHint] = useState('');
   const [executionTimeline, setExecutionTimeline] = useState<ExecutionTask[]>([]);
@@ -1344,6 +1413,55 @@ const BWConsultantOS: React.FC<BWConsultantOSProps> = ({ onOpenWorkspace, embedd
     );
   }, [caseStudy]);
 
+  const classifyConsultantInput = useCallback((input: string) => {
+    const normalized = input.trim();
+    const tokens = normalized
+      .toLowerCase()
+      .replace(/[^a-z0-9\s'-]/g, ' ')
+      .split(/\s+/)
+      .filter(Boolean);
+
+    const greetingOnly = /^(hi|hello|hey|yo|sup|good\s+(morning|afternoon|evening)|greetings|howdy)[!.,\s]*$/i.test(normalized);
+    const smallTalkOnly = /^(thanks|thank\s+you|ok|okay|cool|nice|great|yes|yep|no|nope)[!.,\s]*$/i.test(normalized);
+    const inferredName = normalized.match(/\b(?:i am|i'm|my name is|this is)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})\b/i)?.[1] || null;
+    const hasStrategicIntent = /\b(help|assist|decision|objective|goal|need|market|entry|investment|compliance|risk|jurisdiction|country|deadline|timeline|partner|proposal|report|letter|document|strategy|problem|issue|opportunity)\b/i.test(normalized);
+    const hasEntityHint = /\b(my name is|i am|i'm|from|in|at|for|company|organization|agency|ministry|board|investor|regulator)\b/i.test(normalized);
+
+    const isLowSignal = Boolean(
+      normalized && (
+        greetingOnly
+        || smallTalkOnly
+        || (!hasStrategicIntent && !hasEntityHint && tokens.length <= 4)
+      )
+    );
+
+    return {
+      normalized,
+      tokens,
+      inferredName,
+      greetingOnly,
+      smallTalkOnly,
+      hasStrategicIntent,
+      isLowSignal
+    };
+  }, []);
+
+  const buildLowSignalReply = useCallback((detectedName: string | null) => {
+    const knownName = (detectedName || caseStudy.userName || '').trim();
+    const greeting = knownName
+      ? `Hello ${knownName}, I am your BW Consultant.`
+      : 'Hello, I am your BW Consultant.';
+
+    return [
+      greeting,
+      'I can help immediately once I have a little context.',
+      'Please share in one message:',
+      '1) Your name and role',
+      '2) Country or jurisdiction',
+      '3) The decision or outcome you need help with'
+    ].join('\n');
+  }, [caseStudy.userName]);
+
   const extractConsultantSignals = useCallback((input: string) => {
     const normalized = input.trim();
     if (!normalized) {
@@ -1363,21 +1481,40 @@ const BWConsultantOS: React.FC<BWConsultantOSProps> = ({ onOpenWorkspace, embedd
       };
     }
 
-    const userName = normalized.match(/\b(?:i am|i'm|my name is)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})\b/i)?.[1] || null;
+    const inputSignal = classifyConsultantInput(normalized);
+
+    if (inputSignal.isLowSignal && !inputSignal.inferredName) {
+      return {
+        userName: null as string | null,
+        country: null as string | null,
+        jurisdiction: null as string | null,
+        organizationName: null as string | null,
+        organizationType: null as string | null,
+        contactRole: null as string | null,
+        objectives: null as string | null,
+        currentMatter: null as string | null,
+        constraints: null as string | null,
+        targetAudience: null as string | null,
+        decisionDeadline: null as string | null,
+        evidenceNote: null as string | null
+      };
+    }
+
+    const userName = normalized.match(/\b(?:i am|i'm|my name is)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})\b/i)?.[1] || inputSignal.inferredName;
     const organizationName = normalized.match(/\b(?:organization|company|agency|institution|we are|i represent|from)\s*(?:is|:)?\s*([A-Z][A-Za-z0-9&.,\-\s]{2,80})\b/i)?.[1]?.trim() || null;
     const organizationType = normalized.match(/\b(government agency|private company|ngo|non-profit|investor|bank|development bank|regional council|legal advisory|ministry|public sector|multilateral)\b/i)?.[1] || null;
     const contactRole = normalized.match(/\b(?:i am the|my role is|i serve as|i am)\s+([A-Za-z\s\-/]{3,60})\b/i)?.[1]?.trim() || null;
     const country = normalized.match(/\b(?:in|from|operating in|country)\s+([A-Z][A-Za-z\s]{2,40})\b/i)?.[1]?.trim() || null;
     const jurisdiction = normalized.match(/\b(?:jurisdiction|regulatory regime|legal framework)\s*(?:is|:)?\s*([A-Za-z\s\-/]{3,60})\b/i)?.[1]?.trim() || null;
     const objectives = normalized.match(/\b(?:objective is|goal is|we aim to|we want to|wish to achieve)\s+([^\n.]{12,220})/i)?.[1]?.trim() || null;
-    const currentMatter = normalized.length >= 40 ? normalized : null;
+    const currentMatter = inputSignal.isLowSignal ? null : (normalized.length >= 40 ? normalized : null);
     const constraints = normalized.match(/\b(?:constraint|limit|limitation|budget|timeline|deadline|compliance|resource|political)\b/i)
-      ? normalized
+      ? (inputSignal.isLowSignal ? null : normalized)
       : null;
     const targetAudience = normalized.match(/\b(?:for|to|audience|decision makers?)\s+(board|investors?|regulator[s]?|ministry|government|court|executive team|partners?)\b/i)?.[1] || null;
     const decisionDeadline = normalized.match(/\b(?:deadline|due|by|before)\s*[:-]?\s*([^\n.]{3,60})/i)?.[1]?.trim() || null;
     const evidenceNote = /\b(evidence|annex|dataset|source|kpi|metric|report|attachment)\b/i.test(normalized)
-      ? normalized
+      ? (inputSignal.isLowSignal ? null : normalized)
       : null;
 
     return {
@@ -1394,7 +1531,7 @@ const BWConsultantOS: React.FC<BWConsultantOSProps> = ({ onOpenWorkspace, embedd
       decisionDeadline,
       evidenceNote
     };
-  }, []);
+  }, [classifyConsultantInput]);
 
   const consultantGateMissing = useMemo(() => {
     const missing: string[] = [];
@@ -3241,6 +3378,7 @@ ${agentRegistry.current.toManifest()}`;
     if (!inputValue.trim() && uploadedFiles.length === 0) return;
 
     let userContent = inputValue.trim();
+    const inputSignal = classifyConsultantInput(userContent);
     const extractedSignals = extractConsultantSignals(userContent);
     
     const discoveredDocs: DocumentOption[] = [];
@@ -3370,6 +3508,22 @@ ${agentRegistry.current.toManifest()}`;
     setMessages(prev => [...prev, userMessage]);
     setInputValue('');
     setUploadedFiles([]);
+
+    const shouldBypassStrategicPipeline = inputSignal.isLowSignal && uploadedFiles.length === 0;
+    if (shouldBypassStrategicPipeline) {
+      const assistantReply: Message = {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: buildLowSignalReply(extractedSignals.userName),
+        timestamp: new Date(),
+        phase: 'discovery'
+      };
+      setMessages(prev => [...prev, assistantReply]);
+      setReactiveDraftStatus('Reactive: onboarding mode — low-signal input detected');
+      setReactiveDraftHint('Provide name, jurisdiction, and objective to activate full case analysis.');
+      return;
+    }
+
     setIsLoading(true);
     initializeExecutionTimeline();
     setExecutionTaskStatus('ingestion', 'running', 'Parsing user input and updating case draft');
@@ -3423,7 +3577,7 @@ ${agentRegistry.current.toManifest()}`;
       }]);
 
       const trimmedUserContent = userContent.trim();
-      const isGreetingOnly = /^(hi|hello|hey|good\s+(morning|afternoon|evening)|yo|sup)[!.\s]*$/i.test(trimmedUserContent);
+      const isGreetingOnly = inputSignal.greetingOnly || inputSignal.smallTalkOnly;
       const deliverableIntent = classifyDeliverableIntent(trimmedUserContent);
       const shouldPromptForOutputClarification = shouldAskOutputClarification(caseDraft, trimmedUserContent, deliverableIntent);
       const shouldRunInsights = liveReadiness >= 25 && !isGreetingOnly && !shouldPromptForOutputClarification;
@@ -3481,7 +3635,7 @@ ${agentRegistry.current.toManifest()}`;
       // The AI may have emitted [[TOOL:name]]{...}[[/TOOL]] blocks.
       // Detect them, execute, strip from visible text, then do a follow-up pass.
       const toolCalls = AgentToolRegistry.parseToolCalls(responseContent);
-      const autoToolCalls = enableFullCaseTreeMatching && !shouldPromptForOutputClarification
+      const autoToolCalls = enableFullCaseTreeMatching && !shouldPromptForOutputClarification && !inputSignal.isLowSignal
         ? [
             caseDraft.country.trim()
               ? { name: 'get_country_intelligence', params: { country: caseDraft.country } }
@@ -3679,6 +3833,8 @@ ${agentRegistry.current.toManifest()}`;
   }, [
     inputValue,
     uploadedFiles,
+    classifyConsultantInput,
+    buildLowSignalReply,
     currentPhase,
     initializeExecutionTimeline,
     setExecutionTaskStatus,
@@ -5740,6 +5896,19 @@ Use concrete facts from the case. No template language. Write the complete repor
                   className="hidden"
                   accept=".txt,.md,.csv,.json,.pdf,.doc,.docx"
                 />
+                {/* Voice input button */}
+                <button
+                  type="button"
+                  onClick={toggleVoiceInput}
+                  title={isListening ? 'Stop listening' : 'Speak your message'}
+                  className={`p-3 border transition-all flex-shrink-0 ${
+                    isListening
+                      ? 'bg-red-500 text-white border-red-600 animate-pulse'
+                      : 'bg-stone-100 hover:bg-stone-200 text-slate-600 border-stone-300'
+                  }`}
+                >
+                  {isListening ? <MicOff size={20} /> : <Mic size={20} />}
+                </button>
                 <textarea
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
