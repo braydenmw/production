@@ -1244,22 +1244,6 @@ const BWConsultantOS: React.FC<BWConsultantOSProps> = ({ onOpenWorkspace, embedd
     return 'Building Initial Draft';
   }, [isCaseStudyComplete, liveDraftReadiness]);
 
-  const agenticRuntimeStatus = useMemo(() => {
-    const augmentedOnline = Boolean(augmentedAISnapshot || augmentedCapabilityTags.length > 0 || augmentedRecommendedTools.length > 0);
-    const reactiveOnline = Boolean(reactiveDraftStatus || reactiveDraftHint);
-    const autonomyMode = missionSnapshot
-      ? missionSnapshot.autonomyPaused
-        ? 'Paused'
-        : 'Active'
-      : 'Standby';
-
-    return {
-      augmentedOnline,
-      reactiveOnline,
-      autonomyMode
-    };
-  }, [augmentedAISnapshot, augmentedCapabilityTags.length, augmentedRecommendedTools.length, reactiveDraftStatus, reactiveDraftHint, missionSnapshot]);
-
   const liveDraftDocumentTargets = useMemo(() => {
     const selectedTitles = selectedDocs
       .map((id) => recommendedDocs.find((doc) => doc.id === id)?.title)
@@ -2556,19 +2540,17 @@ const BWConsultantOS: React.FC<BWConsultantOSProps> = ({ onOpenWorkspace, embedd
     }
   }, [recommendationBoostMap]);
 
-  // Start with autonomous welcome message
+  // Start with onboarding welcome message
   useEffect(() => {
     if (messages.length === 0) {
       const initialMessage: Message = {
         id: crypto.randomUUID(),
         role: 'assistant',
         content: [
-          'BW Consultant Command Console online.',
-          '',
-          'I answer direct questions, run autonomous strategic analysis, and reactively update your live case file from natural conversation.',
-          '',
-          'Tell me what you are working on and I will adapt in real time.',
-          'For the fastest setup, open Quick Consultant to preload context and strategic factors.'
+          'Hello, I am your BW Consultant.',
+          'May I know who I am speaking to, please?',
+          'Where are you from?',
+          'Tell me more about you and what you are needing assistance with.'
         ].join('\n'),
         timestamp: new Date(),
         phase: 'discovery'
@@ -5621,42 +5603,6 @@ Use concrete facts from the case. No template language. Write the complete repor
           <div className="flex-1 flex flex-col bg-stone-50">
             {/* Messages */}
             <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-6 space-y-4">
-              {/* Runtime status bar — clean light theme */}
-              <div className="max-w-4xl mx-auto border border-stone-200 bg-white px-4 py-2.5 rounded-lg shadow-sm">
-                <div className="flex items-center justify-between mb-1.5">
-                  <div className="flex items-center gap-2">
-                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-slate-600">BW Consultant Runtime</span>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setVoiceEnabled(prev => {
-                        if (prev) window.speechSynthesis?.cancel();
-                        return !prev;
-                      });
-                    }}
-                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-medium transition-all ${
-                      voiceEnabled
-                        ? 'bg-blue-100 text-blue-700 border border-blue-300'
-                        : 'bg-stone-100 text-slate-500 border border-stone-200 hover:bg-stone-200'
-                    }`}
-                    title={voiceEnabled ? 'Voice on — click to mute' : 'Voice off — click to enable'}
-                  >
-                    {voiceEnabled ? <Volume2 size={12} /> : <VolumeX size={12} />}
-                    {voiceEnabled ? 'Voice On' : 'Voice Off'}
-                  </button>
-                </div>
-                <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-[10px] text-slate-500">
-                  <span>Augmented: <span className={agenticRuntimeStatus.augmentedOnline ? 'text-blue-600 font-semibold' : 'text-slate-400'}>{agenticRuntimeStatus.augmentedOnline ? 'Online' : 'Standby'}</span></span>
-                  <span>Reactive: <span className={agenticRuntimeStatus.reactiveOnline ? 'text-blue-600 font-semibold' : 'text-slate-400'}>{agenticRuntimeStatus.reactiveOnline ? 'Online' : 'Standby'}</span></span>
-                  <span>Autonomy: <span className={agenticRuntimeStatus.autonomyMode === 'Active' ? 'text-blue-600 font-semibold' : agenticRuntimeStatus.autonomyMode === 'Paused' ? 'text-amber-600 font-semibold' : 'text-slate-400'}>{agenticRuntimeStatus.autonomyMode}</span></span>
-                </div>
-                <div className="mt-1 flex items-center gap-3 text-[10px] text-slate-500">
-                  <span>Readiness: <span className={liveDraftReadiness >= 75 ? 'text-green-600 font-semibold' : liveDraftReadiness >= 40 ? 'text-amber-600 font-semibold' : 'text-red-500 font-semibold'}>{liveDraftReadiness}%</span></span>
-                  <span>Gate: <span className={consultantGateReady ? 'text-green-600 font-semibold' : 'text-red-500 font-semibold'}>{consultantGateReady ? 'Ready' : 'Needs Inputs'}</span></span>
-                  <span>Phase: <span className="text-blue-600 font-semibold capitalize">{currentPhase}</span></span>
-                </div>
-              </div>
               {messages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center">
                   <Bot size={40} className="text-blue-200 mb-4" />
@@ -5705,7 +5651,7 @@ Use concrete facts from the case. No template language. Write the complete repor
                         )}
                         <div className={`whitespace-pre-wrap ${msg.role === 'assistant' ? 'text-[13px] leading-[1.7] text-slate-800' : ''}`}>
                           {msg.role === 'assistant' && msgIdx === messages.length - 1 && !isLoading && !displayedMsgIds.current.has(msg.id) ? (
-                            <TypewriterText text={msg.content} speed={10} onStart={() => {
+                            <TypewriterText text={msg.content} speed={75} onStart={() => {
                               displayedMsgIds.current.add(msg.id);
                               if (voiceEnabled && !spokenMsgIds.current.has(msg.id) && typeof window !== 'undefined' && window.speechSynthesis) {
                                 spokenMsgIds.current.add(msg.id);
@@ -6130,67 +6076,22 @@ Use concrete facts from the case. No template language. Write the complete repor
                       </ul>
                     </div>
                     <div className="mt-3 space-y-3">
-                      {Array.from({ length: 14 }).map((_, index) => (
+                      {Array.from({ length: 20 }).map((_, index) => (
                         <div key={`a4-line-${index}`} className="border-b border-stone-200 h-5" />
                       ))}
                     </div>
                   </div>
                 ) : (
-                  <>
-                    <div className="border border-stone-200 bg-white px-3 py-2">
-                      <p className="text-[11px] font-semibold text-slate-800">Section A — Executive Summary</p>
-                      <p className="mt-1 text-[11px] text-slate-700 leading-relaxed">{liveDraftExecutiveSummary}</p>
-                    </div>
-                    <div className="mt-2 border border-stone-200 bg-stone-50 px-3 py-2">
-                      <p className="text-[11px] font-semibold text-slate-800">Section B — Current Case Readiness</p>
-                      <p className="mt-1 text-[11px] text-slate-700 leading-relaxed">
-                        The case study is currently {liveDraftReadiness}% complete. Continue adding identity, jurisdiction, objective, context, constraints, audience, and deadline data to complete the report-grade case file.
-                      </p>
-                    </div>
-                  </>
-                )}
-
-                {hasLiveDraftSignals && (
-                <div className="mt-2 grid grid-cols-1 gap-2">
-                  <div className="border border-stone-200 bg-stone-50 px-2 py-2">
-                    <p className="text-[11px] font-semibold text-slate-800">Section C — Candidate Output Package</p>
-                    <ul className="mt-1 space-y-0.5">
-                      {liveDraftDocumentTargets.slice(0, 10).map((title, index) => (
-                        <li key={`sidebar-live-doc-${title}-${index}`} className="text-[11px] text-slate-700">• {title}</li>
+                  <div className="border border-stone-200 bg-white px-4 py-4 min-h-[700px]">
+                    <p className="text-[11px] font-semibold text-slate-800">Case Study Notes — Live Notepad (Page 1)</p>
+                    <p className="mt-1 text-[10px] text-slate-500">Blank workspace for tracking conversation inputs. Content appears only when you add it.</p>
+                    <div className="mt-3 space-y-3">
+                      {Array.from({ length: 20 }).map((_, index) => (
+                        <div key={`a4-line-live-${index}`} className="border-b border-stone-200 h-5" />
                       ))}
-                    </ul>
-                    {generatedDocuments.length > 0 && (
-                      <p className="mt-1 text-[10px] text-green-700">
-                        Generated now: {generatedDocuments.length} document{generatedDocuments.length === 1 ? '' : 's'}
-                      </p>
-                    )}
+                    </div>
                   </div>
-
-                  <div className="border border-stone-200 bg-stone-50 px-2 py-2">
-                    <p className="text-[11px] font-semibold text-slate-800">Section C.1 — Source Traceability</p>
-                    <ul className="mt-1 space-y-0.5">
-                      {liveDraftEvidenceSources.slice(0, 10).map((source, index) => (
-                        <li key={`sidebar-live-source-${index}`} className="text-[11px] text-slate-700">• {source}</li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
                 )}
-
-                <div className="mt-2 border border-blue-200 bg-blue-50 px-2 py-1.5">
-                  <p className="text-[10px] font-semibold text-blue-800">Section D — Evaluation & Action Path</p>
-                  <p className="mt-0.5 text-[10px] text-blue-800">
-                    {!isCaseStudyComplete
-                      ? `Locked until case completeness reaches 100% (current: ${liveDraftReadiness}%).`
-                      : 'Unlocked: NSIL evaluation and action-step recommendations are now being generated.'}
-                  </p>
-                </div>
-
-                <div className="mt-2 border border-amber-200 bg-amber-50 px-2 py-1.5">
-                  <p className="text-[10px] text-amber-800">
-                    Guidance only: This live draft supports decision preparation and communication with interested parties. It must not be treated as a final legal, regulatory, financial, or investment decision.
-                  </p>
-                </div>
               </div>
             </div>
 
