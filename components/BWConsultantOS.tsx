@@ -6657,21 +6657,18 @@ Use concrete facts from the case. No template language. Write the complete repor
             <div className="h-full flex flex-col">
               <div className="px-4 py-3 border-b border-stone-200 bg-slate-50">
                 <div className="flex items-center justify-between gap-2">
-                  <h3 className="text-sm font-bold text-slate-900">BW Quick Consultant</h3>
+                  <h3 className="text-sm font-bold text-slate-900">Live Research</h3>
                   <div className="flex items-center gap-1.5">
                     <button
                       type="button"
-                      onClick={() => syncQuickConsultantToCaseStudy('manual-sync')}
+                      onClick={() => {
+                        syncQuickConsultantToCaseStudy('manual-sync');
+                        setLiveInsightsRequested(true);
+                        void fetchLiveWorldInsights();
+                      }}
                       className="px-2 py-1 text-[10px] border border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
                     >
-                      Sync to BW Consultant
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowPilotHowTo(true)}
-                      className="px-2 py-1 text-[10px] border border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100"
-                    >
-                      Guide
+                      Push + Search
                     </button>
                     <button
                       type="button"
@@ -6682,79 +6679,58 @@ Use concrete facts from the case. No template language. Write the complete repor
                     </button>
                   </div>
                 </div>
-                <p className="mt-1 text-[11px] text-slate-600">
-                  Tell us where you're focused and who you want to work with. We'll surface relevant government programs, development finance, and regional intelligence to strengthen your case.
-                </p>
-                <div className="mt-2 border border-blue-200 bg-blue-50 p-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <label className="flex items-center gap-1.5 text-[10px] text-slate-700">
-                      <input
-                        type="checkbox"
-                        checked={strategicAutoApplyEnabled}
-                        onChange={(e) => setStrategicAutoApplyEnabled(e.target.checked)}
-                      />
-                      Auto-apply strategic factors while typing
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        syncQuickConsultantToCaseStudy('manual-sync');
-                        void applyStrategicFactors('manual');
-                      }}
-                      disabled={strategicApplyLoading}
-                      className="px-2 py-1 text-[10px] border border-blue-300 bg-white text-blue-700 hover:bg-blue-100 disabled:opacity-60"
-                    >
-                      {strategicApplyLoading ? 'Applying…' : 'Apply Strategic Factors'}
-                    </button>
-                  </div>
-                  {strategicApplyUpdatedAt && (
-                    <p className="mt-1 text-[9px] text-blue-700">Last strategic apply: {new Date(strategicApplyUpdatedAt).toLocaleString()}</p>
-                  )}
-                  {strategicApplyError && (
-                    <p className="mt-1 text-[9px] text-red-600">{strategicApplyError}</p>
-                  )}
-                </div>
+                <p className="mt-1 text-[11px] text-slate-600">Use buttons while chatting to push context into BW Consultant and run live world research.</p>
               </div>
 
-              <div className="flex-1 overflow-y-auto">
-                {/* Country of Focus */}
-                <div className="p-3 border-b border-stone-200 bg-white">
-                  <p className="text-[11px] font-semibold text-slate-700 mb-1.5">Country or Region of Focus</p>
+              <div className="flex-1 overflow-y-auto p-3 space-y-3">
+                <div className="border border-stone-200 bg-white p-2">
+                  <p className="text-[11px] font-semibold text-slate-700">Country / Region</p>
                   <input
                     type="text"
                     value={quickCountryFocus}
                     onChange={(e) => setQuickCountryFocus(e.target.value)}
                     onBlur={() => syncQuickConsultantToCaseStudy('country-input')}
-                    placeholder="e.g. Philippines, Australia, East Africa, GCC..."
-                    className="w-full border border-stone-300 px-2 py-1.5 text-[11px] text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Type country, then refine search"
+                    className="mt-1 w-full border border-stone-300 px-2 py-1.5 text-[11px] text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
-                  <p className="mt-1 text-[10px] text-slate-500">This helps us find relevant government programs, development banks, and investment opportunities.</p>
+                  <div className="mt-1.5 flex flex-wrap gap-1">
+                    {['Philippines', 'Australia', 'Indonesia', 'Vietnam', 'India', 'UAE', 'Kenya', 'Brazil'].map((country) => (
+                      <button
+                        key={country}
+                        type="button"
+                        onClick={() => {
+                          setQuickCountryFocus(country);
+                          syncQuickConsultantToCaseStudy('country-chip', { country });
+                        }}
+                        className="px-1.5 py-0.5 text-[9px] border border-stone-300 bg-stone-50 text-slate-700 hover:bg-stone-100"
+                      >
+                        {country}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
-                {/* Who are you looking to do business with */}
-                <div className="p-3 border-b border-stone-200 bg-white">
-                  <p className="text-[11px] font-semibold text-slate-700 mb-1.5">Who are you looking to do business with?</p>
+                <div className="border border-stone-200 bg-white p-2">
+                  <p className="text-[11px] font-semibold text-slate-700">Counterpart / Target</p>
                   <input
                     type="text"
                     value={quickBusinessTarget}
                     onChange={(e) => setQuickBusinessTarget(e.target.value)}
                     onBlur={() => syncQuickConsultantToCaseStudy('business-target-input')}
-                    placeholder="e.g. Government, development bank, private investors, local partners..."
-                    className="w-full border border-stone-300 px-2 py-1.5 text-[11px] text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Government, bank, investor, partner..."
+                    className="mt-1 w-full border border-stone-300 px-2 py-1.5 text-[11px] text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
-                  <p className="mt-1 text-[10px] text-slate-500">Helps us tailor recommendations to the right counterparts and stakeholders.</p>
                 </div>
 
-                {/* What are you working on — expanded */}
-                <div className="p-3 border-b border-stone-200 bg-white">
-                  <p className="text-[11px] font-semibold text-slate-700 mb-2">What are you working on?</p>
-                  <div className="grid grid-cols-3 gap-1.5">
-                    {(['new-markets', 'government-entry', 'partnerships', 'risk-compliance', 'investment-readiness', 'operations-delivery', 'trade-export', 'regional-development', 'fundraising-capital', 'licensing-approvals', 'joint-ventures', 'supply-chain'] as PilotModeFocus[]).map((focus) => (
+                <div className="border border-stone-200 bg-white p-2">
+                  <p className="text-[11px] font-semibold text-slate-700">Focus</p>
+                  <div className="mt-1 grid grid-cols-2 gap-1">
+                    {(['new-markets', 'government-entry', 'partnerships', 'risk-compliance', 'investment-readiness', 'operations-delivery'] as PilotModeFocus[]).map((focus) => (
                       <button
                         key={focus}
                         type="button"
                         onClick={() => handleTogglePilotFocus(focus)}
-                        className={`text-[10px] px-1.5 py-1.5 border text-left leading-tight ${
+                        className={`text-[10px] px-1.5 py-1 border text-left ${
                           normalizedPilotFocusSelections.includes(focus)
                             ? 'bg-blue-600 text-white border-blue-600'
                             : 'bg-white text-slate-700 border-stone-300 hover:bg-stone-50'
@@ -6764,441 +6740,113 @@ Use concrete facts from the case. No template language. Write the complete repor
                       </button>
                     ))}
                   </div>
-                  <div className="mt-2">
-                    <input
-                      type="text"
-                      value={quickCustomFocus}
-                      onChange={(e) => setQuickCustomFocus(e.target.value)}
-                      onBlur={() => syncQuickConsultantToCaseStudy('custom-focus-input')}
-                      placeholder="Or describe what you're working on..."
-                      className="w-full border border-stone-300 px-2 py-1.5 text-[10px] text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    />
-                    <p className="mt-1 text-[9px] text-slate-400">If none of the options above match, type your own and we'll tailor everything to it.</p>
-                  </div>
                 </div>
 
-                {/* Industry / Sector Focus — expanded with custom input */}
-                <div className="p-3 border-b border-stone-200 bg-slate-50">
-                  <p className="text-[11px] font-semibold text-slate-700 mb-1.5">Industry / Sector</p>
-                  <div className="grid grid-cols-2 gap-1">
-                    {GLOBAL_ISSUE_PACKS.map((pack) => (
+                <div className="border border-stone-200 bg-emerald-50 p-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[11px] font-semibold text-emerald-800">Live Search Feed</p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLiveInsightsRequested(true);
+                        void fetchLiveWorldInsights();
+                      }}
+                      disabled={liveInsightLoading}
+                      className="px-2 py-1 text-[10px] border border-emerald-600 bg-emerald-600 text-white disabled:opacity-60"
+                    >
+                      {liveInsightLoading ? 'Searching…' : 'Run Live Search'}
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    value={liveInsightQuery}
+                    onChange={(e) => setLiveInsightQuery(e.target.value)}
+                    placeholder="Search person, agency, country policy, grants, funds..."
+                    className="mt-1 w-full border border-stone-300 px-2 py-1 text-[10px] text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  />
+                  <div className="mt-1 flex flex-wrap items-center gap-1">
+                    {([
+                      ['all', 'All'],
+                      ['government', 'Government'],
+                      ['finance', 'Banking/Finance'],
+                      ['entities', 'Companies'],
+                      ['news', 'News']
+                    ] as Array<[LiveInsightFilter, string]>).map(([value, label]) => (
                       <button
-                        key={pack.id}
+                        key={value}
                         type="button"
-                        onClick={() => {
-                          setActiveGlobalIssuePack(pack.id);
-                          syncQuickConsultantToCaseStudy('sector-pack-button', { sector: pack.label });
-                        }}
-                        className={`text-[10px] px-1.5 py-1 border text-left ${
-                          activeGlobalIssuePack === pack.id
-                            ? 'bg-blue-600 text-white border-blue-600'
+                        onClick={() => setLiveInsightFilter(value)}
+                        className={`px-1.5 py-0.5 text-[9px] border ${
+                          liveInsightFilter === value
+                            ? 'bg-emerald-600 text-white border-emerald-600'
                             : 'bg-white text-slate-700 border-stone-300 hover:bg-stone-50'
                         }`}
                       >
-                        {pack.label}
+                        {label}
                       </button>
                     ))}
                   </div>
-                  <div className="mt-2 flex items-center gap-1.5">
-                    <input
-                      type="text"
-                      value={quickCustomSector}
-                      onChange={(e) => setQuickCustomSector(e.target.value)}
-                      onBlur={() => syncQuickConsultantToCaseStudy('custom-sector-input')}
-                      placeholder="Or type your sector..."
-                      className="flex-1 border border-stone-300 px-2 py-1 text-[10px] text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-                </div>
-
-                {/* Live World Insights — adaptive report-style briefing */}
-                <div className="p-3 border-b border-stone-200 bg-emerald-50">
-                  <div className="flex items-center gap-1.5 mb-1.5">
-                    <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-                    </span>
-                    <p className="text-[11px] font-semibold text-emerald-800">Live World Insights</p>
-                  </div>
-                  <p className="text-[10px] text-emerald-700 mb-2">
-                    News Desk Brief: {effectivePilotFocusText}{quickCountryFocus ? ` in ${quickCountryFocus}` : ''}{quickCustomSector || activeIssuePack ? ` — ${quickCustomSector || activeIssuePack.label}` : ''}.
-                  </p>
-                  <div className="bg-white border border-emerald-200 px-2 py-2 mb-1.5">
-                    <p className="text-[10px] font-semibold text-slate-800 mb-1">Live Search Feed</p>
-                    <div className="flex items-center gap-1.5">
-                      <input
-                        type="text"
-                        value={liveInsightQuery}
-                        onChange={(e) => setLiveInsightQuery(e.target.value)}
-                        placeholder="Search person, government agency, company, bank, investment program..."
-                        className="flex-1 border border-stone-300 px-2 py-1 text-[10px] text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setLiveInsightsRequested(true);
-                          void fetchLiveWorldInsights();
-                        }}
-                        disabled={liveInsightLoading}
-                        className="px-2 py-1 text-[10px] border border-emerald-600 bg-emerald-600 text-white disabled:opacity-60"
-                      >
-                        {liveInsightLoading ? 'Searching…' : liveInsightInputsChanged ? 'Refresh Live Search' : 'Run Live Search'}
-                      </button>
-                    </div>
-                    <p className="mt-1 text-[9px] text-slate-500">
-                      Pulls live Google/Serper news and web signals for government, banking/finance, company, and partnership intelligence.
-                    </p>
-                    <div className="mt-1 flex flex-wrap items-center gap-1">
-                      {([
-                        ['all', 'All'],
-                        ['government', 'Government'],
-                        ['finance', 'Banking/Finance'],
-                        ['entities', 'Companies/Partners'],
-                        ['news', 'News']
-                      ] as Array<[LiveInsightFilter, string]>).map(([value, label]) => (
-                        <button
-                          key={value}
-                          type="button"
-                          onClick={() => setLiveInsightFilter(value)}
-                          className={`px-1.5 py-0.5 text-[9px] border ${
-                            liveInsightFilter === value
-                              ? 'bg-emerald-600 text-white border-emerald-600'
-                              : 'bg-white text-slate-700 border-stone-300 hover:bg-stone-50'
-                          }`}
-                        >
-                          {label}
-                        </button>
-                      ))}
-                    </div>
-                    {liveInsightUpdatedAt && (
-                      <p className="mt-1 text-[9px] text-emerald-700">Last updated: {new Date(liveInsightUpdatedAt).toLocaleString()}</p>
-                    )}
-                    {liveInsightQueryUsed && (
-                      <p className="mt-1 text-[9px] text-slate-600">Query used: {liveInsightQueryUsed}</p>
-                    )}
-                    {liveInsightProviderStatus && (
-                      <p className="mt-1 text-[9px] text-slate-600">Provider status: {liveInsightProviderStatus}</p>
-                    )}
-                    {liveInsightInputsChanged && (
-                      <p className="mt-1 text-[9px] text-amber-700">New inputs since last search. Run Live Search to refresh intelligence.</p>
-                    )}
-                    {!liveInsightError && liveInsightRunReason && (
-                      <p className="mt-1 text-[9px] text-amber-700">{liveInsightRunReason}</p>
-                    )}
-                    {liveInsightError && <p className="mt-1 text-[9px] text-red-600">{liveInsightError}</p>}
-                    {!liveInsightsRequested && !liveInsightLoading && (
-                      <p className="mt-1 text-[9px] text-emerald-700">Run Live Search to load world insights for your current case.</p>
-                    )}
-                    {liveInsightLoading && (
-                      <p className="mt-1 text-[9px] text-emerald-700 flex items-center gap-1">
-                        <Loader2 className="w-3 h-3 animate-spin" /> Fetching live results...
-                      </p>
-                    )}
-                    {liveInsightsRequested && !liveInsightLoading && liveInsightVisibleResults.length > 0 && (
-                      <div className="mt-1.5 space-y-1">
-                        {liveInsightVisibleResults.slice(0, 4).map((item, idx) => (
-                          <div key={`${item.link}-${idx}`} className="flex items-start gap-1.5">
-                            <a
-                              href={item.link}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex-1 text-[9px] text-slate-700 hover:text-emerald-700"
-                            >
-                              • {item.title} <span className="text-slate-400">({item.source})</span>
-                            </a>
-                            <button
-                              type="button"
-                              onClick={() => handlePinLiveInsightToDraft(item)}
-                              disabled={liveInsightPinnedLinks.has(item.link)}
-                              className={`px-1.5 py-0.5 text-[9px] border ${
-                                liveInsightPinnedLinks.has(item.link)
-                                  ? 'bg-emerald-100 text-emerald-700 border-emerald-300'
-                                  : 'bg-white text-slate-700 border-stone-300 hover:bg-stone-50'
-                              }`}
-                            >
-                              {liveInsightPinnedLinks.has(item.link) ? 'Pinned' : 'Pin to Draft'}
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    {liveInsightsRequested && liveInsightPinnedEntries.length > 0 && (
-                      <div className="mt-1.5 border-t border-emerald-200 pt-1.5">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="text-[9px] font-semibold text-emerald-800">Pinned Sources</p>
+                  {liveInsightError && <p className="mt-1 text-[9px] text-red-600">{liveInsightError}</p>}
+                  {liveInsightsRequested && !liveInsightLoading && liveInsightVisibleResults.length > 0 && (
+                    <div className="mt-1.5 space-y-1 max-h-48 overflow-y-auto">
+                      {liveInsightVisibleResults.slice(0, 8).map((item, idx) => (
+                        <div key={`${item.link}-${idx}`} className="flex items-start gap-1.5">
+                          <a
+                            href={item.link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex-1 text-[9px] text-slate-700 hover:text-emerald-700"
+                          >
+                            • {item.title} <span className="text-slate-400">({item.source})</span>
+                          </a>
                           <button
                             type="button"
-                            onClick={handleClearAllPinnedLiveInsights}
-                            className="px-1.5 py-0.5 text-[9px] border bg-white text-slate-700 border-stone-300 hover:bg-stone-50"
+                            onClick={() => handlePinLiveInsightToDraft(item)}
+                            disabled={liveInsightPinnedLinks.has(item.link)}
+                            className={`px-1.5 py-0.5 text-[9px] border ${
+                              liveInsightPinnedLinks.has(item.link)
+                                ? 'bg-emerald-100 text-emerald-700 border-emerald-300'
+                                : 'bg-white text-slate-700 border-stone-300 hover:bg-stone-50'
+                            }`}
                           >
-                            Clear All
+                            {liveInsightPinnedLinks.has(item.link) ? 'Pinned' : 'Push'}
                           </button>
                         </div>
-                        <div className="mt-1 space-y-1">
-                          {liveInsightPinnedEntries.map((item, idx) => (
-                            <div key={`${item.link}-pinned-${idx}`} className="flex items-start gap-1.5">
-                              <a
-                                href={item.link}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex-1 text-[9px] text-slate-700 hover:text-emerald-700"
-                              >
-                                • {item.title} <span className="text-slate-400">({item.source || item.bucket})</span>
-                              </a>
-                              <button
-                                type="button"
-                                onClick={() => handleUnpinLiveInsightFromDraft(item)}
-                                className="px-1.5 py-0.5 text-[9px] border bg-white text-slate-700 border-stone-300 hover:bg-stone-50"
-                              >
-                                Unpin
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  {liveInsightsRequested && (
-                  <div className="space-y-1.5">
-                    {/* Global trends for focus area */}
-                    <div className="bg-white border border-emerald-200 px-2 py-1.5">
-                      <p className="text-[10px] font-semibold text-slate-800 flex items-center gap-1">
-                        <span className="text-emerald-600">●</span> Global Trends
-                      </p>
-                      <p className="text-[10px] text-slate-600">
-                        {liveInsightLeads.global
-                          ? `${liveInsightLeads.global.title} — ${liveInsightLeads.global.snippet || `Source: ${liveInsightLeads.global.source}`}`
-                          : quickCountryFocus
-                          ? `Latest desk signals show policy shifts, procurement updates, and regional competition affecting ${quickCustomSector || activeIssuePack.label.toLowerCase()} activity tied to ${quickCountryFocus}.`
-                          : `Current global patterns in ${effectivePilotFocusText} — policy shifts, emerging opportunities, and regional competition now shaping market entry timing.`}
-                      </p>
-                    </div>
-
-                    {/* Funding & finance signals */}
-                    <div className="bg-white border border-emerald-200 px-2 py-1.5">
-                      <p className="text-[10px] font-semibold text-slate-800 flex items-center gap-1">
-                        <span className="text-emerald-600">●</span> Funding & Finance Signals
-                      </p>
-                      <p className="text-[10px] text-slate-600">
-                        {liveInsightLeads.funding
-                          ? `${liveInsightLeads.funding.title} — ${liveInsightLeads.funding.snippet || `Source: ${liveInsightLeads.funding.source}`}`
-                          : quickCountryFocus
-                          ? `Current financing watch includes development bank windows, bilateral programs, and private capital movements now relevant to ${quickCountryFocus} for ${quickCustomSector || activeIssuePack.label.toLowerCase()}.`
-                          : `Global development finance windows, bilateral aid programs, and venture/PE activity in ${quickCustomSector || activeIssuePack.label.toLowerCase()} with near-term entry relevance.`}
-                      </p>
-                    </div>
-
-                    {/* Regulatory & compliance signals */}
-                    <div className="bg-white border border-emerald-200 px-2 py-1.5">
-                      <p className="text-[10px] font-semibold text-slate-800 flex items-center gap-1">
-                        <span className="text-emerald-600">●</span> Regulatory & Compliance Watch
-                      </p>
-                      <p className="text-[10px] text-slate-600">
-                        {liveInsightLeads.regulatory
-                          ? `${liveInsightLeads.regulatory.title} — ${liveInsightLeads.regulatory.snippet || `Source: ${liveInsightLeads.regulatory.source}`}`
-                          : quickCountryFocus
-                          ? `Regulatory watch is tracking licensing, permitting, and compliance updates in ${quickCountryFocus} that may change sequencing, approvals, and risk posture.`
-                          : 'Select a country to see regulatory changes and compliance requirements that may affect your plans.'}
-                      </p>
-                    </div>
-
-                    {/* Competition & opportunity */}
-                    <div className="bg-white border border-emerald-200 px-2 py-1.5">
-                      <p className="text-[10px] font-semibold text-slate-800 flex items-center gap-1">
-                        <span className="text-emerald-600">●</span> Opportunity & Competition
-                      </p>
-                      <p className="text-[10px] text-slate-600">
-                        {liveInsightLeads.opportunity
-                          ? `${liveInsightLeads.opportunity.title} — ${liveInsightLeads.opportunity.snippet || `Source: ${liveInsightLeads.opportunity.source}`}`
-                          : quickCountryFocus && quickBusinessTarget
-                          ? `Competitive scan tracks active players in ${quickCustomSector || activeIssuePack.label.toLowerCase()} in ${quickCountryFocus}, what ${quickBusinessTarget} currently prioritize, and where opportunity gaps remain.`
-                          : quickCountryFocus
-                            ? `Market gaps, competitor movement, and partnership openings in ${quickCountryFocus} for ${effectivePilotFocusText} are now being monitored.`
-                            : 'Add your country and business target above to see competitive landscape and opportunity gaps.'}
-                      </p>
-                    </div>
-
-                    {/* Case-tree adaptive signal watch */}
-                    {enableFullCaseTreeMatching && (
-                      <div className="bg-white border border-emerald-200 px-2 py-1.5">
-                        <p className="text-[10px] font-semibold text-slate-800 flex items-center gap-1">
-                          <span className="text-emerald-600">●</span> Case-Tree Match Watch
-                        </p>
-                        <p className="text-[10px] text-slate-600 mb-1">
-                          This brief auto-adapts to what you enter and what the full case-tree scan finds across conversation context, uploaded files, NSIL insights, and policy requirements.
-                        </p>
-                        <div className="space-y-0.5">
-                          {fullCaseTreeMatchingSignals.slice(0, 3).map((signal, index) => (
-                            <p key={`${signal}-${index}`} className="text-[10px] text-slate-600">• {signal}</p>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* What this means for you — personalized */}
-                    {(quickCountryFocus || quickBusinessTarget || quickCustomFocus) && (
-                      <div className="bg-emerald-100 border border-emerald-300 px-2 py-1.5">
-                        <p className="text-[10px] font-semibold text-emerald-900 flex items-center gap-1">
-                          <span className="text-emerald-700">★</span> What This Means for You
-                        </p>
-                        <p className="text-[10px] text-emerald-800">
-                          Based on your focus on <strong>{effectivePilotFocusText}</strong>
-                          {quickCountryFocus ? <> in <strong>{quickCountryFocus}</strong></> : ''}
-                          {quickBusinessTarget ? <> targeting <strong>{quickBusinessTarget}</strong></> : ''}
-                          , this report stream prioritizes the most decision-relevant policy, finance, compliance, and competitive shifts and feeds them into your consultant responses and draft documents.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                  )}
-                  <p className="mt-2 text-[9px] text-emerald-600 italic">These insights are woven into your consultant responses and draft documents.</p>
-                </div>
-
-                {/* External Findings & Considerations */}
-                {(quickCountryFocus || quickBusinessTarget || (quickCustomFocus.trim() || normalizedPilotFocusSelections.length > 0)) && (
-                <div className="p-3 space-y-3">
-
-                <div className="border border-blue-200 bg-blue-50 p-2">
-                  <p className="text-[11px] font-bold text-slate-800">Findings & Considerations</p>
-                  <p className="mt-0.5 text-[10px] text-slate-600">Based on your inputs, here's what your BW Consultant is factoring in.</p>
-                </div>
-
-                {/* Market & Regulatory Considerations */}
-                <div className="border border-stone-200 bg-white p-2">
-                  <p className="text-[11px] font-semibold text-slate-800 flex items-center gap-1">
-                    <span className="text-blue-600">◆</span> Market & Regulatory
-                  </p>
-                  <div className="mt-1 space-y-1">
-                    {quickCountryFocus ? (
-                      <>
-                        <p className="text-[10px] text-slate-600">• Local regulations and compliance requirements for {quickCustomSector || activeIssuePack.label || 'your sector'} in {quickCountryFocus}</p>
-                        <p className="text-[10px] text-slate-600">• Import/export rules, tariffs, and trade agreements that may apply</p>
-                        <p className="text-[10px] text-slate-600">• Business registration and licensing requirements in {quickCountryFocus}</p>
-                        {quickBusinessTarget && <p className="text-[10px] text-slate-600">• How {quickBusinessTarget} typically operate and what they expect from partners</p>}
-                      </>
-                    ) : (
-                      <p className="text-[10px] text-slate-500 italic">Add your country above to see specific regulatory and market considerations.</p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Funding & Support Programs */}
-                <div className="border border-stone-200 bg-white p-2">
-                  <p className="text-[11px] font-semibold text-slate-800 flex items-center gap-1">
-                    <span className="text-green-600">◆</span> Funding & Support Programs
-                  </p>
-                  <div className="mt-1 space-y-1">
-                    {quickCountryFocus ? (
-                      <>
-                        <p className="text-[10px] text-slate-600">• Government grants and incentives available for {effectivePilotFocusText} in {quickCountryFocus}</p>
-                        <p className="text-[10px] text-slate-600">• Development bank and multilateral finance programs in the region</p>
-                        <p className="text-[10px] text-slate-600">• Trade support and export assistance programs you may qualify for</p>
-                        {(quickCustomSector || activeIssuePack.label) && <p className="text-[10px] text-slate-600">• Sector-specific funding for {quickCustomSector || activeIssuePack.label}</p>}
-                      </>
-                    ) : (
-                      <p className="text-[10px] text-slate-500 italic">Add your country above to see relevant funding and support opportunities.</p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Strategic Considerations */}
-                <div className="border border-stone-200 bg-white p-2">
-                  <p className="text-[11px] font-semibold text-slate-800 flex items-center gap-1">
-                    <span className="text-amber-600">◆</span> Strategic Considerations
-                  </p>
-                  <div className="mt-1 space-y-1">
-                    {(quickCustomFocus.trim() || normalizedPilotFocusSelections.length > 0) ? (
-                      <>
-                        <p className="text-[10px] text-slate-600">• Key stakeholders and decision-makers you should be aware of</p>
-                        <p className="text-[10px] text-slate-600">• Timing considerations — political cycles, budget periods, seasonal factors</p>
-                        {quickBusinessTarget && <p className="text-[10px] text-slate-600">• What {quickBusinessTarget} prioritise when selecting partners or suppliers</p>}
-                        <p className="text-[10px] text-slate-600">• Common pitfalls and what others in this space have learned</p>
-                        {quickCountryFocus && <p className="text-[10px] text-slate-600">• Cultural and business practice norms in {quickCountryFocus}</p>}
-                      </>
-                    ) : (
-                      <p className="text-[10px] text-slate-500 italic">Choose a focus above to see strategic considerations for your situation.</p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Risks & Things to Watch */}
-                <div className="border border-amber-200 bg-amber-50 p-2">
-                  <p className="text-[11px] font-semibold text-amber-800 flex items-center gap-1">
-                    <span className="text-amber-600">⚠</span> Risks & Things to Watch
-                  </p>
-                  <div className="mt-1 space-y-1">
-                    {quickCountryFocus ? (
-                      <>
-                        <p className="text-[10px] text-amber-800">• Political and economic stability factors in {quickCountryFocus}</p>
-                        <p className="text-[10px] text-amber-800">• Currency and payment risks for cross-border transactions</p>
-                        <p className="text-[10px] text-amber-800">• Regulatory changes on the horizon that could affect your plans</p>
-                        {quickBusinessTarget && <p className="text-[10px] text-amber-800">• Reputation and due diligence considerations when working with {quickBusinessTarget}</p>}
-                      </>
-                    ) : (
-                      <p className="text-[10px] text-amber-700 italic">Add your country above to see risk factors and things to watch.</p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Topics being researched */}
-                {pilotFocusIssues.length > 0 && (
-                  <div className="border border-stone-200 bg-white p-2">
-                    <p className="text-[11px] font-semibold text-slate-800">Topics Being Researched</p>
-                    <p className="mt-0.5 text-[10px] text-slate-500">Based on your focus, we're looking into these areas for you.</p>
-                    <div className="mt-1.5 flex flex-wrap gap-1">
-                      {pilotFocusIssues.map((issue) => (
-                        <button
-                          key={issue.id}
-                          type="button"
-                          onClick={() => handleResearchTopicFromIssue(issue)}
-                          className="inline-block text-[9px] px-2 py-0.5 bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100"
-                          title="Add this topic to draft context and run live research"
-                        >
-                          {issue.title}
-                        </button>
                       ))}
                     </div>
-                    <p className="mt-1 text-[9px] text-slate-500">Click any topic to push it into the case draft and trigger live research.</p>
-                  </div>
-                )}
-
-                {/* Live Draft Build Visibility */}
-                <div className="border border-blue-200 bg-blue-50 p-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-[11px] font-semibold text-blue-800">Live Draft Build Status</p>
-                    <button
-                      type="button"
-                      onClick={() => setShowPilotWindow(false)}
-                      className="text-[9px] px-1.5 py-0.5 border border-blue-300 bg-white text-blue-700 hover:bg-blue-100"
-                    >
-                      View Live Draft Workspace
-                    </button>
-                  </div>
-                  <p className="mt-0.5 text-[10px] text-blue-800">
-                    Stage: {liveDraftStatus} • Readiness: {liveDraftReadiness}%
-                  </p>
-                  <p className="mt-0.5 text-[10px] text-slate-700">
-                    {liveDraftExecutiveSummary.slice(0, 220)}{liveDraftExecutiveSummary.length > 220 ? '…' : ''}
-                  </p>
-                  {caseStudy.additionalContext.length > 0 && (
-                    <p className="mt-0.5 text-[9px] text-slate-600">
-                      Latest draft signal: {caseStudy.additionalContext[caseStudy.additionalContext.length - 1]}
-                    </p>
                   )}
                 </div>
 
-                {/* Ask about something specific */}
-                <div className="border border-stone-200 bg-white p-2">
-                  <p className="text-[11px] font-semibold text-slate-700">Quick Lines → Live Draft</p>
-                  <p className="mt-0.5 text-[10px] text-slate-600">Paste a few simple lines and we will convert them into BW Consultant case context.</p>
+                <div className="border border-stone-200 bg-blue-50 p-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[11px] font-semibold text-blue-800">Quick Push to Live Draft</p>
+                    <button
+                      type="button"
+                      onClick={() => syncQuickConsultantToCaseStudy('manual-sync')}
+                      className="text-[9px] px-1.5 py-0.5 border border-blue-300 bg-white text-blue-700 hover:bg-blue-100"
+                    >
+                      Sync Now
+                    </button>
+                  </div>
                   <textarea
                     value={quickDraftLines}
                     onChange={(e) => setQuickDraftLines(e.target.value)}
-                    placeholder={'Example:\nCountry: Philippines\nObjective: Attract renewable energy investors\nDecision: Submit government proposal this quarter\nAudience: Ministry + investors'}
+                    placeholder={'Country: ...\nObjective: ...\nDecision: ...\nAudience: ...'}
                     rows={4}
                     className="mt-1 w-full resize-none border border-stone-300 px-2 py-1 text-[10px] text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
-                  <div className="mt-1 flex justify-end">
+                  <div className="mt-1 flex items-center justify-between gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        syncQuickConsultantToCaseStudy('manual-sync');
+                        void applyStrategicFactors('manual');
+                      }}
+                      disabled={strategicApplyLoading}
+                      className="text-[10px] px-2 py-1 border border-blue-300 bg-white text-blue-700 hover:bg-blue-100 disabled:opacity-60"
+                    >
+                      {strategicApplyLoading ? 'Applying…' : 'Apply Strategic Factors'}
+                    </button>
                     <button
                       type="button"
                       onClick={handleConvertQuickLinesToDraft}
@@ -7209,61 +6857,11 @@ Use concrete facts from the case. No template language. Write the complete repor
                           : 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700'
                       }`}
                     >
-                      Convert to Draft
+                      Convert
                     </button>
                   </div>
+                  {strategicApplyError && <p className="mt-1 text-[9px] text-red-600">{strategicApplyError}</p>}
                 </div>
-
-                <div className="border border-stone-200 bg-white p-2">
-                  <p className="text-[11px] font-semibold text-slate-700">Ask About Something Specific</p>
-                  <p className="mt-0.5 text-[10px] text-slate-600">Want us to research something particular? Add it here and your consultant will factor it in.</p>
-                  <div className="mt-1 flex items-center gap-1.5">
-                    <input
-                      type="text"
-                      value={customPilotOptionInput}
-                      onChange={(e) => setCustomPilotOptionInput(e.target.value)}
-                      placeholder="e.g. What tax incentives exist for foreign investors?"
-                      className="flex-1 border border-stone-300 px-2 py-1 text-[10px] text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleAddCustomPilotOption}
-                      disabled={!customPilotOptionInput.trim()}
-                      className={`text-[10px] px-2 py-1 border ${
-                        !customPilotOptionInput.trim()
-                          ? 'bg-slate-200 text-slate-400 border-slate-300 cursor-not-allowed'
-                          : 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
-                      }`}
-                    >
-                      Research
-                    </button>
-                  </div>
-                  {customPilotOptions.length > 0 && (
-                    <div className="mt-1.5 space-y-1">
-                      {customPilotOptions.map((option) => (
-                        <div key={option.id} className="flex items-center gap-1.5 text-[10px] px-2 py-1 bg-slate-50 border border-stone-200 text-slate-700">
-                          <span className="text-blue-500">→</span>
-                          <span className="flex-1">{option.label}</span>
-                          <span className="text-[9px] text-green-600">Researching</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Case summary */}
-                <div className="border border-stone-200 bg-slate-50 p-2">
-                  <p className="text-[11px] text-slate-600">
-                    Researching: <strong>{effectivePilotFocusText}</strong>
-                    {quickCountryFocus ? ` • ${quickCountryFocus}` : ''}
-                    {quickBusinessTarget ? ` • ${quickBusinessTarget}` : ''}
-                    {activeIssuePack.label ? ` • ${activeIssuePack.label}` : ''}
-                    {quickCustomSector ? ` • ${quickCustomSector}` : ''}
-                    {customPilotOptions.length > 0 ? ` • ${customPilotOptions.length} custom research items` : ''}
-                  </p>
-                </div>
-                </div>
-                )}
               </div>
             </div>
           </div>
