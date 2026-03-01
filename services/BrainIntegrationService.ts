@@ -33,6 +33,7 @@ import { CaseGraphBuilder } from './CaseGraphBuilder';
 import { RegionalDevelopmentOrchestrator } from './RegionalDevelopmentOrchestrator';
 import { PartnerComparisonEngine } from './PartnerComparisonEngine';
 import { DecisionPipeline } from './DecisionPipeline';
+import { DocumentTypeRouter } from './DocumentTypeRouter';
 import { ReportParameters } from '../types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -79,6 +80,10 @@ export interface BrainContext {
   computedAt: string;
   /** Readiness score that triggered the run */
   readiness: number;
+  /** IDs of the top recommended document types from the 247-doc catalog */
+  recommendedDocumentIds: string[];
+  /** IDs of the top recommended letter types from the 156-letter catalog */
+  recommendedLetterIds: string[];
 }
 
 // ─── Simple in-process cache (keyed by country + objectives + org) ────────────
@@ -450,6 +455,42 @@ export class BrainIntegrationService {
       });
     }
 
+    // ── Document Catalog Recommendations (247 docs + 156 letters) ────────────
+    const catalogKeywords = [
+      params.country || '',
+      params.sector || '',
+      (params as any).organizationType || '',
+      strategicQuestion,
+      ...((params as any).strategicIntent || []),
+    ].join(' ');
+
+    const bestDoc = DocumentTypeRouter.findBestDocumentType(catalogKeywords);
+    const bestLetter = DocumentTypeRouter.findBestLetterType(catalogKeywords);
+    const coreDocs = ['executive-brief', 'risk-assessment-report', 'partner-proposal'];
+    const coreLetters = ['loi-investment', 'loi-partnership', 'engagement-introduction'];
+
+    const recommendedDocumentIds = [...new Set([
+      ...coreDocs,
+      bestDoc?.id,
+      readiness >= 60 ? 'due-diligence-report' : null,
+      readiness >= 70 ? 'full-feasibility-study' : 'investment-attraction-strategy',
+      readiness >= 80 ? 'government-submission' : null,
+    ].filter(Boolean) as string[])];
+
+    const recommendedLetterIds = [...new Set([
+      ...coreLetters,
+      bestLetter?.id,
+      readiness >= 60 ? 'gov-regulatory-inquiry' : null,
+      readiness >= 70 ? 'gov-incentive-request' : null,
+    ].filter(Boolean) as string[])];
+
+    const catalogSummary = DocumentTypeRouter.getCatalogSummary();
+    promptParts.push(`\n### ── DOCUMENT CATALOG (${catalogSummary.totalDocumentTypes} Types | ${catalogSummary.totalLetterTypes} Letter Templates) ──`);
+    promptParts.push(`**Top Recommended Documents:** ${recommendedDocumentIds.slice(0, 5).join(', ')}`);
+    promptParts.push(`**Top Recommended Letters:** ${recommendedLetterIds.slice(0, 4).join(', ')}`);
+    if (bestDoc) promptParts.push(`**Best Case Match:** ${bestDoc.name} (${bestDoc.category})`);
+    if (bestLetter) promptParts.push(`**Best Letter Match:** ${bestLetter.name} (${bestLetter.category})`);
+
     promptParts.push(`${'═'.repeat(70)}\n`);
 
     const result: BrainContext = {
@@ -467,6 +508,8 @@ export class BrainIntegrationService {
       decisionPacket,
       computedAt: new Date().toISOString(),
       readiness,
+      recommendedDocumentIds,
+      recommendedLetterIds,
     };
 
     cache.set(key, { result, expiresAt: Date.now() + CACHE_TTL_MS });

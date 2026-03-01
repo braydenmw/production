@@ -37,6 +37,8 @@ import { RegionalDevelopmentOrchestrator } from '../services/RegionalDevelopment
 import type { PartnerCandidate } from '../services/PartnerIntelligenceEngine';
 import BrainIntegrationService, { type BrainContext } from '../services/BrainIntegrationService';
 import { PersistentMemorySystem } from '../services/PersistentMemorySystem';
+import { DocumentTypeRouter } from '../services/DocumentTypeRouter';
+import { IntelligentDocumentGenerator } from '../services/IntelligentDocumentGenerator';
 
 // ============================================================================
 // TYPES
@@ -3356,6 +3358,40 @@ ${agentRegistry.current.toManifest()}`;
       }))
       .sort((a, b) => b.relevance - a.relevance);
 
+    // ─── Inject FULL 247-doc + 156-letter catalog from DocumentTypeRouter ────
+    // Brain-recommended IDs rise to the top; the rest become 'available'
+    const catalogEntries = IntelligentDocumentGenerator.recommendForCase({
+      country: caseStudy.country || '',
+      sector: caseStudy.sector || caseStudy.situationType || '',
+      organizationName: caseStudy.organizationName || '',
+      organizationType: caseStudy.targetAudience || '',
+      strategicIntent: [caseStudy.situationType, caseStudy.currentMatter].filter(Boolean),
+      readiness: readinessScore,
+      brainContext: brainContext,
+      question: caseStudy.currentMatter || caseStudy.situationType,
+    });
+
+    const existingIds = new Set(preferenceAwareDocs.map(d => d.id));
+
+    const catalogMapped: DocumentOption[] = catalogEntries
+      .filter(e => !existingIds.has(e.id))
+      .map(e => ({
+        id: e.id,
+        title: e.name,
+        description: e.description,
+        icon: e.type === 'letter' ? <Mail size={18} /> : <FileText size={18} />,
+        category: e.type === 'letter' ? 'letter' : 'report',
+        relevance: e.recommended ? Math.min(95, 45 + (e.relevanceScore ?? 60)) : Math.min(50, (e.relevanceScore ?? 40)),
+        rationale: e.rationale || `Available from the ${e.category} catalog`,
+        pageRange: e.estimatedWords ? `~${Math.round(e.estimatedWords / 250)} pages` : '2-15 pages',
+        supportingDocuments: [],
+        contactLetterFor: e.type === 'letter' ? (e.audience || 'Primary counterpart') : undefined,
+      }));
+
+    // Brain-boosted entries float above non-recommended existing items
+    const fullList = [...preferenceAwareDocs, ...catalogMapped]
+      .sort((a, b) => b.relevance - a.relevance);
+
     setRecommendationRationaleMap(
       scored.reduce<Record<string, string>>((acc, item) => {
         acc[item.id] = item.rationale;
@@ -3370,8 +3406,8 @@ ${agentRegistry.current.toManifest()}`;
       }, {})
     );
 
-    setRecommendedDocs(preferenceAwareDocs);
-  }, [caseStudy, resolvePolicyPack, recommendationBoostMap, preferredOutputMode]);
+    setRecommendedDocs(fullList);
+  }, [caseStudy, resolvePolicyPack, recommendationBoostMap, preferredOutputMode, readinessScore, brainContext]);
 
   useEffect(() => {
     if (isCaseStudyComplete && recommendedDocs.length > 0) {
@@ -4447,8 +4483,44 @@ ${agentRegistry.current.toManifest()}`;
         const isLetter = doc.category === 'letter';
         const audienceNote = caseStudy.targetAudience ? ` for ${caseStudy.targetAudience}` : '';
 
-        const docPrompt = isLetter
-          ? `You are BW Global Advisory writing a professional institutional letter.
+        // ── Try DocumentTypeRouter section-prompt-driven generation first ──────
+        const brainBlock = brainContext?.promptBlock || '';
+        const caseContextStr = [
+          `Organization: ${caseStudy.organizationName || 'Not specified'}`,
+          `Country / Jurisdiction: ${caseStudy.country || 'Not specified'}`,
+          `Sector / Situation: ${caseStudy.situationType || 'Not specified'}`,
+          `Objective: ${caseStudy.currentMatter || 'Not specified'}`,
+          `Target Audience: ${caseStudy.targetAudience || 'Not specified'}`,
+          `Constraints: ${caseStudy.constraints || 'Standard commercial terms'}`,
+        ].join('\n');
+
+        let content = '';
+
+        if (isLetter) {
+          // Try letter route first (DocumentTypeRouter)
+          const letterRoute = DocumentTypeRouter.routeLetter(doc.id);
+          if (letterRoute) {
+            const { promptInstruction } = letterRoute;
+            const aiPrompt = [
+              `You are BW Global Advisory writing a professional institutional letter.`,
+              `Letter Type: ${doc.title}${audienceNote}`,
+              ``,
+              `### Letter Brief`,
+              promptInstruction,
+              ``,
+              `### Case Context`,
+              caseContextStr,
+              ``,
+              `### Intelligence Context`,
+              brainBlock,
+              ``,
+              `Write the complete letter now. Formal, institutional tone. No placeholders. Jurisdiction: ${caseStudy.jurisdiction || caseStudy.country || 'Global'}.`,
+            ].join('\n');
+            content = await processWithAI(aiPrompt, `Generating letter ${i + 1}/${docsToGenerate.length}: ${doc.title}`);
+          } else {
+            // Fallback letter prompt
+            content = await processWithAI(
+              `You are BW Global Advisory writing a professional institutional letter.
 Write: ${doc.title}${audienceNote}
 
 Case context:
@@ -4460,8 +4532,49 @@ ${customResearchTopics.length > 0 ? `Additional research topics to address: ${cu
 
 Letter format: formal, institutional, jurisdiction-aware (${caseStudy.jurisdiction || caseStudy.country || 'Global'}).
 Structure: ## Opening | ## Purpose and Context | ## Key Points | ## Supporting Evidence | ## Next Steps
-Address the named counterpart or their role. Use concrete facts and timelines. No template placeholders. Write the complete letter.`
-          : `You are BW Global Advisory writing a professional consulting report.
+Address the named counterpart or their role. Use concrete facts and timelines. No template placeholders. Write the complete letter.`,
+              `Generating letter ${i + 1}/${docsToGenerate.length}: ${doc.title}. Produce the full letter — do not summarise or truncate.`
+            );
+          }
+        } else {
+          // Try document route (DocumentTypeRouter section prompts)
+          const docRoute = DocumentTypeRouter.routeDocument(doc.id);
+          if (docRoute) {
+            const { sectionPrompts } = docRoute;
+            const sectionContents: string[] = [];
+
+            for (let s = 0; s < sectionPrompts.length; s++) {
+              const sp = sectionPrompts[s];
+              const sectionPrompt = [
+                `## Document Section: ${sp.title}`,
+                ``,
+                `### Your Instructions`,
+                sp.prompt,
+                ``,
+                `### Case Context`,
+                caseContextStr,
+                ``,
+                `### Intelligence Context (use real data from this to strengthen the section)`,
+                brainBlock,
+                ``,
+                `### Constraints`,
+                `- Maximum ${sp.maxWords} words for this section`,
+                `- Professional document prose — not bullet lists unless the instruction specifies it`,
+                `- Ground all claims in the case context and intelligence data above`,
+                `- Begin directly with the content — no meta-commentary`,
+              ].join('\n');
+
+              const sectionContent = await processWithAI(
+                sectionPrompt,
+                `Generating section ${s + 1}/${sectionPrompts.length} — "${sp.title}" — for ${doc.title}`
+              );
+              sectionContents.push(`## ${sp.title}\n\n${sectionContent}`);
+            }
+            content = sectionContents.join('\n\n');
+          } else {
+            // Fallback report prompt
+            content = await processWithAI(
+              `You are BW Global Advisory writing a professional consulting report.
 Write: ${doc.title}${audienceNote}
 
 Case context:
@@ -4485,12 +4598,11 @@ Report structure (use ## for each section):
 ## Next Steps
 ## Annexures
 
-Use concrete facts from the case. No template language. Write the complete report now.`;
-
-        const content = await processWithAI(
-          docPrompt,
-          `Generating document ${i + 1} of ${docsToGenerate.length}: ${doc.title}. Produce the full document — do not summarise or truncate.`
-        );
+Use concrete facts from the case. No template language. Write the complete report now.`,
+              `Generating document ${i + 1} of ${docsToGenerate.length}: ${doc.title}. Produce the full document — do not summarise or truncate.`
+            );
+          }
+        }
 
         const profDoc = buildProfDoc(content, doc);
         const htmlContent = ProfessionalDocumentExporter.exportToHTML(profDoc);
