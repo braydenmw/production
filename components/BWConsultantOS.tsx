@@ -5981,7 +5981,7 @@ Use concrete facts from the case. No template language. Write the complete repor
                   <p className="text-[11px] text-blue-700 mt-0.5">{reactiveDraftHint}</p>
                 </div>
               )}
-              {(augmentedAISnapshot || augmentedRecommendedTools.length > 0 || augmentedUnresolvedGaps.length > 0) && (
+              {messages.length > 0 && (augmentedAISnapshot || augmentedRecommendedTools.length > 0 || augmentedUnresolvedGaps.length > 0) && (
                 <div className="max-w-4xl mx-auto mt-2 border border-emerald-300 bg-emerald-50 px-3 py-2">
                   <p className="text-[11px] font-semibold text-emerald-900 flex items-center gap-1">
                     <CheckCircle2 size={11} className="text-emerald-700" />
