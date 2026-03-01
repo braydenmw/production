@@ -15,6 +15,8 @@ import {
   getRecommendedAugmentedToolsForMode
 } from './augmentedAISupport.js';
 import { buildOverlookedIntelligenceSnapshot } from './overlookedFirstEngine.js';
+import { runStrategicIntelligencePipeline } from './strategicIntelligencePipeline.js';
+import { buildBrainCoverageReport } from './brainCoverageAudit.js';
 
 const router = Router();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -465,6 +467,9 @@ ${deriveConsultantCapabilityProfile(message, context).brief}
 OVERLOOKED-FIRST INTELLIGENCE:
 ${JSON.stringify(buildOverlookedIntelligenceSnapshot(message, context), null, 2)}
 
+STRATEGIC PIPELINE:
+${JSON.stringify(runStrategicIntelligencePipeline(message, context), null, 2)}
+
 INTENT: ${intent}
 INTENT DIRECTIVE: ${buildIntentDirective(intent)}
 
@@ -755,6 +760,7 @@ router.post('/consultant', async (req: Request, res: Response) => {
     const augmentedSnapshot = buildAugmentedAISnapshot(capabilityProfile);
     const recommendedAugmentedTools = getRecommendedAugmentedToolsForMode(capabilityProfile.mode);
     const overlookedIntelligence = buildOverlookedIntelligenceSnapshot(sanitizedMessage, sanitizedContextResult.context);
+    const strategicPipeline = runStrategicIntelligencePipeline(sanitizedMessage, sanitizedContextResult.context);
     if (shouldRequireOutputClarification(sanitizedMessage, intent)) {
       const clarificationText = buildOutputClarificationResponse();
 
@@ -776,6 +782,7 @@ router.post('/consultant', async (req: Request, res: Response) => {
         augmentedModel: augmentedSnapshot.model,
         evidenceCredibility: overlookedIntelligence.evidenceCredibility,
         perceptionRealityGap: overlookedIntelligence.perceptionRealityGap,
+        strategicReadiness: strategicPipeline.readinessScore,
         replayHash,
         replayStored: false
       });
@@ -799,6 +806,7 @@ router.post('/consultant', async (req: Request, res: Response) => {
         augmentedAI: augmentedSnapshot,
         recommendedTools: recommendedAugmentedTools,
         overlookedIntelligence,
+        strategicPipeline,
         replayHash,
         replayAvailable: false
       });
@@ -840,6 +848,7 @@ router.post('/consultant', async (req: Request, res: Response) => {
       augmentedModel: augmentedSnapshot.model,
       evidenceCredibility: overlookedIntelligence.evidenceCredibility,
       perceptionRealityGap: overlookedIntelligence.perceptionRealityGap,
+      strategicReadiness: strategicPipeline.readinessScore,
       replayHash,
       replayStored: CONSULTANT_REPLAY_STORE_PAYLOAD
     });
@@ -863,6 +872,7 @@ router.post('/consultant', async (req: Request, res: Response) => {
       augmentedAI: augmentedSnapshot,
       recommendedTools: recommendedAugmentedTools,
       overlookedIntelligence,
+      strategicPipeline,
       replayHash,
       replayAvailable: CONSULTANT_REPLAY_STORE_PAYLOAD
     });
@@ -923,6 +933,28 @@ router.post('/consultant/overlooked-scan', (req: Request, res: Response) => {
   return res.json({
     overlookedIntelligence
   });
+});
+
+router.post('/consultant/strategic-pipeline', (req: Request, res: Response) => {
+  const { message, context } = req.body ?? {};
+  if (!message || typeof message !== 'string') {
+    return res.status(400).json({ error: 'message is required' });
+  }
+
+  const strategicPipeline = runStrategicIntelligencePipeline(message, context);
+  return res.json({
+    strategicPipeline
+  });
+});
+
+router.get('/brain/coverage', async (_req: Request, res: Response) => {
+  try {
+    const report = await buildBrainCoverageReport();
+    return res.json(report);
+  } catch (error) {
+    console.error('Brain coverage audit failed:', error);
+    return res.status(500).json({ error: 'Failed to generate brain coverage report' });
+  }
 });
 
 router.post('/augmented-ai/review', async (req: Request, res: Response) => {

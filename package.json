@@ -17,7 +17,7 @@
     "preview": "vite preview",
     "test:nsil": "tsx scripts/nsilSimulation.ts",
     "test:e2e": "playwright test --config=playwright.config.ts",
-    "test:consultant": "tsx --test tests/consultant-behavior.test.ts tests/consultant-capabilities.test.ts tests/augmented-ai-support.test.ts tests/overlooked-first-engine.test.ts",
+    "test:consultant": "tsx --test tests/consultant-behavior.test.ts tests/consultant-capabilities.test.ts tests/augmented-ai-support.test.ts tests/overlooked-first-engine.test.ts tests/strategic-intelligence-pipeline.test.ts tests/brain-coverage-audit.test.ts",
     "audit:unused:exports": "ts-prune -p tsconfig.json",
     "audit:unused:deps": "depcheck",
     "audit:cycles": "madge --extensions ts,tsx --circular ./",
