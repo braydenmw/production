@@ -36,6 +36,7 @@ import type { MissionSnapshot } from '../types/autonomy';
 import { RegionalDevelopmentOrchestrator } from '../services/RegionalDevelopmentOrchestrator';
 import type { PartnerCandidate } from '../services/PartnerIntelligenceEngine';
 import BrainIntegrationService, { type BrainContext } from '../services/BrainIntegrationService';
+import { PersistentMemorySystem } from '../services/PersistentMemorySystem';
 
 // ============================================================================
 // TYPES
@@ -757,6 +758,8 @@ const BWConsultantOS: React.FC<BWConsultantOSProps> = ({ onOpenWorkspace, embedd
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   // Background brain context — updated on every enrichment pass
   const brainCtxRef = useRef<BrainContext | null>(null);
+  // Persistent cross-session memory (survives page reload via localStorage)
+  const memoryRef = useRef<PersistentMemorySystem>(new PersistentMemorySystem());
   // Preload browser voices (Chrome loads them async)
   useEffect(() => {
     if (typeof window !== 'undefined' && window.speechSynthesis) {
@@ -3632,11 +3635,17 @@ ${agentRegistry.current.toManifest()}`;
           setExecutionTaskStatus('insight', 'completed', `Brain: ${BrainIntegrationService.summarise(brainCtx)}`);
         }
         const brainBlock = brainCtxRef.current?.promptBlock ?? '';
+        // ── PERSISTENT MEMORY — inject up to 5 recent session turns ──
+        const priorTurns = memoryRef.current.recall('consultant-turns', 5);
+        const memoryBlock = priorTurns.length
+          ? `\n\n### PRIOR SESSION CONTEXT (${priorTurns.length} remembered turns)\n` +
+            priorTurns.map(t => `- [${new Date(t.timestamp).toLocaleDateString()}] ${t.action.substring(0, 120)}`).join('\n')
+          : '';
         setIsStreamingResponse(true);
         displayedMsgIds.current.add(assistantMessageId);
         responseContent = await processWithAIStream(
           userContent,
-          `Autonomous mixed-initiative mode: answer user intent first, then move the case forward with one highest-value follow-up if required. Do not run scripted intake.${brainBlock}`,
+          `Autonomous mixed-initiative mode: answer user intent first, then move the case forward with one highest-value follow-up if required. Do not run scripted intake.${memoryBlock}${brainBlock}`,
           (streamText) => {
             setMessages(prev => prev.map((msg) => (
               msg.id === assistantMessageId ? { ...msg, content: streamText } : msg
@@ -3646,6 +3655,13 @@ ${agentRegistry.current.toManifest()}`;
           }
         );
         setExecutionTaskStatus('response', 'completed', 'Primary response delivered');
+        // ── SAVE TURN TO PERSISTENT MEMORY ──
+        memoryRef.current.remember('consultant-turns', {
+          action: trimmedUserContent.substring(0, 200),
+          context: { country: caseDraft.country, readiness: liveReadiness, org: caseDraft.organizationName },
+          outcome: { response: responseContent.substring(0, 300) },
+          confidence: Math.max(0.1, liveReadiness / 100),
+        }).catch(() => {/* non-fatal */});
       }
 
       // ── TOOL CALL EXECUTION LOOP ─────────────────────────────────────────────
