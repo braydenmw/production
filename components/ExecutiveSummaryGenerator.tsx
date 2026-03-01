@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Zap, Download, Mail, Share2, Clock, TrendingUp, AlertCircle, CheckCircle } from 'lucide-react';
 
 interface ExecutiveSummary {
@@ -111,7 +111,11 @@ const ExecutiveSummaryGenerator: React.FC<ExecutiveSummaryGeneratorProps> = ({
     if (topOpportunities.length === 0) topOpportunities.push('Further market sizing recommended');
 
     // ── Partners derived from sector/country ─────────────────────
-    const partners = [\n      { name: `${targetCountry} Government Investment Authority`, type: 'Strategic Partner', compatibilityScore: Math.min(95, govScore + 8), synergy: `Regulatory facilitation, tax incentives, and market access in ${targetCountry}` },\n      { name: `Regional ${targetSector} Leader`, type: 'JV Partner', compatibilityScore: Math.min(92, govScore + sectorPremium - 2), synergy: `Existing ${targetSector} distribution and customer relationships` },\n      { name: `${targetCountry} Supply Chain Network`, type: 'Supplier/JV', compatibilityScore: Math.min(88, govScore - 5), synergy: `Local expertise, cost optimisation, and operational capacity` }\n    ];
+    const partners = [
+      { name: `${targetCountry} Government Investment Authority`, type: 'Strategic Partner', compatibilityScore: Math.min(95, govScore + 8), synergy: `Regulatory facilitation, tax incentives, and market access in ${targetCountry}` },
+      { name: `Regional ${targetSector} Leader`, type: 'JV Partner', compatibilityScore: Math.min(92, govScore + sectorPremium - 2), synergy: `Existing ${targetSector} distribution and customer relationships` },
+      { name: `${targetCountry} Supply Chain Network`, type: 'Supplier/JV', compatibilityScore: Math.min(88, govScore - 5), synergy: `Local expertise, cost optimisation, and operational capacity` }
+    ];
 
     // ── Recommendation from scored data ─────────────────────────
     let recommendation: string;
@@ -123,7 +127,14 @@ const ExecutiveSummaryGenerator: React.FC<ExecutiveSummaryGeneratorProps> = ({
       recommendation = `HOLD \u2014 ${targetCountry} opportunity score is ${opportunityScore}/100 with ${riskLevel} risk. Recommend gathering additional intelligence and revisiting in 6 months.`;
     }
 
-    const nextSteps = [\n      `Conduct regulatory landscape mapping for ${targetSector} in ${targetCountry} (Week 1-2)`,\n      `Engage ${targetCountry} investment authority for incentive assessment (Week 3-4)`,\n      `Identify and rank top 5 potential JV partners in ${targetSector} (Week 5-8)`,\n      `On-ground market visit and stakeholder meetings (Week 9-12)`,\n      `Negotiate MOU with lead partner and finalise regulatory approvals (Month 4-6)`,\n      `Launch pilot operations in ${targetCountry} (Month 7+)`\n    ];
+    const nextSteps = [
+      `Conduct regulatory landscape mapping for ${targetSector} in ${targetCountry} (Week 1-2)`,
+      `Engage ${targetCountry} investment authority for incentive assessment (Week 3-4)`,
+      `Identify and rank top 5 potential JV partners in ${targetSector} (Week 5-8)`,
+      `On-ground market visit and stakeholder meetings (Week 9-12)`,
+      `Negotiate MOU with lead partner and finalise regulatory approvals (Month 4-6)`,
+      `Launch pilot operations in ${targetCountry} (Month 7+)`
+    ];
 
     const marketSizeLabel = investNum > 0
       ? `$${investNum >= 1000 ? (investNum / 1000).toFixed(1) + 'B' : investNum + 'M'} investment scope`
