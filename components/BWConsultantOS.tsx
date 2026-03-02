@@ -780,6 +780,28 @@ const BWConsultantOS: React.FC<BWConsultantOSProps> = ({ onOpenWorkspace, embedd
   const brainCtxRef = useRef<BrainContext | null>(null);
   // Persistent cross-session memory (survives page reload via localStorage)
   const memoryRef = useRef<PersistentMemorySystem>(new PersistentMemorySystem());
+
+  // Case study state — declared early so useEffects below can reference it without TDZ
+  const [caseStudy, setCaseStudy] = useState<CaseStudy>({
+    userName: '',
+    organizationName: '',
+    organizationType: '',
+    contactRole: '',
+    country: '',
+    jurisdiction: '',
+    organizationMandate: '',
+    targetAudience: '',
+    decisionDeadline: '',
+    situationType: '',
+    currentMatter: '',
+    objectives: '',
+    constraints: '',
+    timeline: '',
+    additionalContext: [],
+    uploadedDocuments: [],
+    aiInsights: []
+  });
+
   // Preload browser voices (Chrome loads them async)
   useEffect(() => {
     if (typeof window !== 'undefined' && window.speechSynthesis) {
@@ -919,26 +941,6 @@ const BWConsultantOS: React.FC<BWConsultantOSProps> = ({ onOpenWorkspace, embedd
   const [showExecutionTimeline, setShowExecutionTimeline] = useState(false);
   const [currentPhase, setCurrentPhase] = useState<CasePhase>('intake');
   
-  // Case study state
-  const [caseStudy, setCaseStudy] = useState<CaseStudy>({
-    userName: '',
-    organizationName: '',
-    organizationType: '',
-    contactRole: '',
-    country: '',
-    jurisdiction: '',
-    organizationMandate: '',
-    targetAudience: '',
-    decisionDeadline: '',
-    situationType: '',
-    currentMatter: '',
-    objectives: '',
-    constraints: '',
-    timeline: '',
-    additionalContext: [],
-    uploadedDocuments: [],
-    aiInsights: []
-  });
 
   // File upload
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
