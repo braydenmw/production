@@ -2944,7 +2944,7 @@ ${agentRegistry.current.toManifest()}`;
       });
 
       const responseText = response.text?.trim();
-      if (!responseText || /chat service unavailable/i.test(responseText)) {
+      if (!responseText || /chat service unavailable|AI service unavailable|Configure AWS credentials/i.test(responseText)) {
         return buildNaturalFallbackReply(userInput);
       }
 
@@ -4021,18 +4021,7 @@ You MUST write each section in full prose, formatted with ## headers, to the spe
       const nextFollowUp = getHighestValueFollowUp(caseDraft);
       const likelyDirectQuestion = /\?|\b(explain|what|why|how|who|can you|could you|should we)\b/i.test(trimmedUserContent);
 
-      if (shouldPromptForOutputClarification || isGreetingOnly || liveReadiness < 10) {
-        setExecutionTaskStatus('followup', 'skipped', 'No follow-up needed for this turn');
-      } else {
-        setExecutionTaskStatus('followup', 'running', 'Evaluating next highest-value clarification');
-        if (nextFollowUp && liveReadiness < 80 && !likelyDirectQuestion) {
-          responseContent = `${responseContent}\n\nOne high-value detail to improve decision quality:\n${nextFollowUp}`;
-          setAdaptiveQuestionsAsked(prev => prev + 1);
-          setExecutionTaskStatus('followup', 'completed', 'Follow-up question appended');
-        } else {
-          setExecutionTaskStatus('followup', 'completed', 'No follow-up needed for this turn');
-        }
-      }
+      setExecutionTaskStatus('followup', 'completed', 'Follow-up managed by AI response');
 
       setMessages(prev => prev.map((msg) => (
         msg.id === assistantMessageId ? { ...msg, content: responseContent, phase: inferredPhase } : msg
@@ -4174,14 +4163,22 @@ You MUST write each section in full prose, formatted with ## headers, to the spe
     } catch (error) {
       console.error('Send error:', error);
       setExecutionTaskStatus('response', 'failed', 'Response pipeline failed');
+      const fallbackContent = buildNaturalFallbackReply(inputValue);
       const errorMessage: Message = {
         id: crypto.randomUUID(),
         role: 'assistant',
-        content: "I encountered an issue processing your request. Please try again.",
+        content: fallbackContent,
         timestamp: new Date(),
         phase: currentPhase
       };
-      setMessages(prev => [...prev, errorMessage]);
+      setMessages(prev => {
+        // If the last assistant message is still the placeholder, update it
+        const last = prev[prev.length - 1];
+        if (last?.role === 'assistant' && (!last.content || last.content.length < 5)) {
+          return prev.map(m => m.id === last.id ? { ...m, content: fallbackContent } : m);
+        }
+        return [...prev, errorMessage];
+      });
     } finally {
       setIsStreamingResponse(false);
       setIsLoading(false);
@@ -4209,6 +4206,7 @@ You MUST write each section in full prose, formatted with ## headers, to the spe
     extractConsultantSignals,
     fetchLiveIntelForCountry,
     processWithAI,
+    buildNaturalFallbackReply,
     enableFullCaseTreeMatching,
     activeIssuePack.label,
     queueAction

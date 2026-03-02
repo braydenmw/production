@@ -59,11 +59,15 @@ export const getChatSession = (): {
 
       // 2. Bedrock direct
       if (isDirectBedrockConfigured()) {
-        const text = await bedrock(msg.message);
-        return { text };
+        try {
+          const text = await bedrock(msg.message);
+          return { text };
+        } catch (bedrockErr) {
+          console.warn('[AI] Bedrock sendMessage failed:', bedrockErr);
+        }
       }
 
-      return { text: 'AI service unavailable. Configure AWS credentials in .env (VITE_AWS_ACCESS_KEY_ID / VITE_AWS_SECRET_ACCESS_KEY).' };
+      return { text: '' };
     },
 
     sendMessageStream: async (msg) => {
@@ -95,17 +99,21 @@ export const getChatSession = (): {
 
       // 2. Bedrock direct (non-streaming, wrapped as async iterable)
       if (isDirectBedrockConfigured()) {
-        const fullText = await bedrock(msg.message);
-        let yielded = false;
-        return {
-          [Symbol.asyncIterator]: () => ({
-            async next() {
-              if (yielded) return { done: true as const, value: undefined };
-              yielded = true;
-              return { done: false as const, value: { text: fullText } };
-            }
-          })
-        };
+        try {
+          const fullText = await bedrock(msg.message);
+          let yielded = false;
+          return {
+            [Symbol.asyncIterator]: () => ({
+              async next() {
+                if (yielded) return { done: true as const, value: undefined };
+                yielded = true;
+                return { done: false as const, value: { text: fullText } };
+              }
+            })
+          };
+        } catch (bedrockErr) {
+          console.warn('[AI] Bedrock sendMessageStream failed:', bedrockErr);
+        }
       }
 
       return { [Symbol.asyncIterator]: () => ({ async next() { return { done: true as const, value: undefined }; } }) };
@@ -391,6 +399,6 @@ export const extractFileTextViaAI = async (file: File): Promise<string> => {
     } catch { /* ignore */ }
   }
 
-  return `[${file.name}] — Document could not be extracted. Add VITE_AWS_ACCESS_KEY_ID and VITE_AWS_SECRET_ACCESS_KEY to .env to enable AI-powered extraction.`;
+  return `[${file.name}] — PDF content could not be extracted in this environment. For AI-powered document analysis, ensure AWS Bedrock credentials are configured. The file name and upload have been noted for the consultation context.`;
 };
 

@@ -554,7 +554,13 @@ const _AWS_KEY    = (import.meta as any).env?.VITE_AWS_ACCESS_KEY_ID || '';
 const _AWS_SECRET = (import.meta as any).env?.VITE_AWS_SECRET_ACCESS_KEY || '';
 const _BEDROCK_MODEL = 'anthropic.claude-3-5-sonnet-20241022-v2:0';
 
-export const isDirectBedrockConfigured = (): boolean => Boolean(_AWS_KEY && _AWS_SECRET);
+export const isDirectBedrockConfigured = (): boolean => {
+  return Boolean(
+    _AWS_KEY && _AWS_SECRET &&
+    !_AWS_KEY.includes('YOUR_') && _AWS_KEY.length > 10 &&
+    !_AWS_SECRET.includes('YOUR_') && _AWS_SECRET.length > 10
+  );
+};
 
 async function _sha256Hex(data: string): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(data));
