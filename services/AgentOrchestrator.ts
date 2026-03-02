@@ -30,10 +30,6 @@
  */
 
 import { generateWithTogether, TOGETHER_SYSTEM_PROMPT } from './togetherAIService';
-import {
-  isBedrockAgentConfigured,
-  runAutonomousPipeline,
-} from './bedrockAgentService';
 import IntelligentDocumentGenerator, {
   type GeneratedDocument,
   type DocumentCatalogEntry,
@@ -131,6 +127,9 @@ export class AgentOrchestrator {
       // the AWS Bedrock Agent supervisor (Claude 3.5 Sonnet) which orchestrates
       // the 5 Lambda action groups autonomously. Falls back to the local
       // Together.ai multi-agent loop below if Bedrock is not configured.
+      // Dynamic import avoids module initialisation order issues (TDZ) in Vite bundles.
+      const { isBedrockAgentConfigured, runAutonomousPipeline } = await import('./bedrockAgentService');
+
       if (isBedrockAgentConfigured()) {
         emit('research', 'Bedrock Agent', 5, 'Routing to AWS Bedrock Agent supervisor...', 'BedrockAgent: supervisor pipeline starting');
 
@@ -146,7 +145,9 @@ export class AgentOrchestrator {
         emit('complete', 'Complete', 100, `Bedrock Agent pipeline complete`, `BedrockAgent: done in ${((Date.now() - startMs) / 1000).toFixed(1)}s`);
 
         // Map Bedrock raw output into OrchestratorResult shape
-        const wordCount = bedrockResult.output.split(/\s+/).length;
+        // runAutonomousPipeline returns a string directly
+        const bedrockOutput = typeof bedrockResult === 'string' ? bedrockResult : String(bedrockResult);
+        const wordCount = bedrockOutput.split(/\s+/).length;
         const bedrockDoc: GeneratedDocument = {
           id: `bedrock-${Date.now()}`,
           typeId: 'strategic-intelligence-brief',
@@ -157,12 +158,12 @@ export class AgentOrchestrator {
           preparedBy: 'BW NEXUS AI — Bedrock Agent Supervisor',
           date: new Date().toLocaleDateString('en-AU', { year: 'numeric', month: 'long', day: 'numeric' }),
           reportId: `BWN-${Date.now()}`,
-          fullMarkdown: bedrockResult.output,
+          fullMarkdown: bedrockOutput,
           sections: [
             {
               id: 'bedrock-full-output',
               title: 'Autonomous Intelligence Output',
-              content: bedrockResult.output,
+              content: bedrockOutput,
               wordCount,
               intelligenceSources: ['AWS Bedrock Agent', 'Claude 3.5 Sonnet', 'Lambda Action Groups'],
             },
@@ -175,7 +176,7 @@ export class AgentOrchestrator {
             brainContextUsed: true,
             intelligenceDimensions: ['Research', 'Analysis', 'Risk', 'Partner', 'Document'],
           },
-        };
+        } satisfies GeneratedDocument;
 
         return {
           success: true,
