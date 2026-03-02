@@ -15,11 +15,10 @@
  * â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
  */
 
-import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
 import { ReportParameters, ReportData, CopilotInsight, RefinedIntake } from '../types';
 import CompositeScoreService from './CompositeScoreService';
 import { computeFrontierIntelligence } from './algorithms';
-import { getGeminiApiKey } from './awsBedrockService';
+import { invokeBedrockDirect } from './awsBedrockService';
 
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // TYPES & INTERFACES
@@ -28,7 +27,7 @@ import { getGeminiApiKey } from './awsBedrockService';
 export interface AIAgent {
   id: string;
   name: string;
-  model: 'gemini' | 'gpt-4' | 'claude' | 'mistral' | 'local';
+  model: 'bedrock' | 'gpt-4' | 'claude' | 'mistral' | 'local';
   specialty: string;
   priority: number;
   isAvailable: boolean;
@@ -116,8 +115,8 @@ const CLAUDE_AVAILABLE = typeof process !== 'undefined' && process.env?.ANTHROPI
 
 export class MultiAgentOrchestrator {
   private static agents: AIAgent[] = [
-    { id: 'gemini-flash', name: 'Gemini Flash', model: 'gemini', specialty: 'Fast analysis & pattern recognition', priority: 1, isAvailable: true },
-    { id: 'gemini-pro', name: 'Gemini Pro', model: 'gemini', specialty: 'Deep reasoning & complex analysis', priority: 2, isAvailable: true },
+    { id: 'bedrock-fast', name: 'Bedrock Claude Fast', model: 'bedrock', specialty: 'Fast analysis & pattern recognition', priority: 1, isAvailable: true },
+    { id: 'bedrock-deep', name: 'Bedrock Claude Deep', model: 'bedrock', specialty: 'Deep reasoning & complex analysis', priority: 2, isAvailable: true },
     { id: 'gpt-4', name: 'GPT-4 Turbo', model: 'gpt-4', specialty: 'Strategic synthesis & document generation', priority: 2, isAvailable: GPT4_AVAILABLE },
     { id: 'claude-3', name: 'Claude 3 Opus', model: 'claude', specialty: 'Ethical analysis & risk assessment', priority: 2, isAvailable: CLAUDE_AVAILABLE },
     { id: 'local-brain', name: 'Local Brain', model: 'local', specialty: 'Deterministic calculations & formula execution', priority: 1, isAvailable: true }
@@ -144,12 +143,12 @@ export class MultiAgentOrchestrator {
       let dataSources: string[];
 
       switch (agent.model) {
-        case 'gemini': {
-          const geminiResult = await this.callGeminiAPI(prompt, context);
-          response = geminiResult.text;
-          confidence = geminiResult.confidence;
-          reasoning = geminiResult.reasoning;
-          dataSources = ['Google Gemini API', 'World Bank', 'REST Countries'];
+        case 'bedrock': {
+          const bedrockResult = await this.callBedrockAPI(prompt, context);
+          response = bedrockResult.text;
+          confidence = bedrockResult.confidence;
+          reasoning = bedrockResult.reasoning;
+          dataSources = ['AWS Bedrock Claude', 'World Bank', 'REST Countries'];
           break;
         }
 
@@ -205,14 +204,14 @@ export class MultiAgentOrchestrator {
     }
   }
 
-  private static async callGeminiAPI(prompt: string, context: any): Promise<{ text: string; confidence: number; reasoning: string[] }> {
+  private static async callBedrockAPI(prompt: string, context: any): Promise<{ text: string; confidence: number; reasoning: string[] }> {
     // Try backend first
     try {
       const response = await fetch('/api/ai/multi-agent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          model: 'gemini',
+          model: 'bedrock',
           prompt, 
           context,
           systemInstruction: BRAIN_SYSTEM_INSTRUCTION
@@ -228,41 +227,20 @@ export class MultiAgentOrchestrator {
         };
       }
     } catch (error) {
-      console.log('[MultiAgent] Backend unavailable, trying direct Gemini API...');
+      console.log('[MultiAgent] Backend unavailable, trying direct Bedrock API...');
     }
     
-    // Fallback to direct Gemini API
-    const apiKey = getGeminiApiKey();
-    if (apiKey) {
-      try {
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ 
-          model: 'gemini-2.0-flash',
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 4096,
-          },
-          safetySettings: [
-            { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
-            { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
-            { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
-            { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
-          ]
-        });
-        
-        const fullPrompt = `${BRAIN_SYSTEM_INSTRUCTION}\n\nContext: ${JSON.stringify(context)}\n\nTask: ${prompt}\n\nProvide a detailed, actionable response with specific data and recommendations.`;
-        
-        const result = await model.generateContent(fullPrompt);
-        const responseText = result.response.text();
-        
-        return {
-          text: responseText,
-          confidence: 0.85,
-          reasoning: ['Direct Gemini API analysis complete', 'Processed with gemini-2.0-flash']
-        };
-      } catch (geminiError) {
-        console.warn('[MultiAgent] Direct Gemini API failed:', geminiError);
-      }
+    // Fallback to direct Bedrock API
+    try {
+      const fullPrompt = `${BRAIN_SYSTEM_INSTRUCTION}\n\nContext: ${JSON.stringify(context)}\n\nTask: ${prompt}\n\nProvide a detailed, actionable response with specific data and recommendations.`;
+      const responseText = await invokeBedrockDirect(fullPrompt);
+      return {
+        text: responseText,
+        confidence: 0.85,
+        reasoning: ['Direct Bedrock Claude analysis complete']
+      };
+    } catch (bedrockError) {
+      console.warn('[MultiAgent] Direct Bedrock API failed:', bedrockError);
     }
     
     // Final fallback to local brain
@@ -286,20 +264,14 @@ export class MultiAgentOrchestrator {
         reasoning: data.reasoning || ['GPT-4 synthesis complete']
       };
     } catch {
-      // Fallback to direct Gemini API as GPT-4 alternative
+      // Fallback to Bedrock as GPT-4 alternative
       try {
-        const { GoogleGenerativeAI } = await import('@google/generative-ai');
-        const apiKey = getGeminiApiKey();
-        if (apiKey) {
-          const genAI = new GoogleGenerativeAI(apiKey);
-          const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-          const result = await model.generateContent(`Act as a strategic analyst (GPT-4 perspective). ${prompt}`);
-          return {
-            text: result.response.text(),
-            confidence: 0.84,
-            reasoning: ['Gemini-powered GPT-4 alternative analysis complete']
-          };
-        }
+        const text = await invokeBedrockDirect(`Act as a strategic analyst (GPT-4 perspective). ${prompt}`);
+        return {
+          text,
+          confidence: 0.84,
+          reasoning: ['Bedrock-powered GPT-4 alternative analysis complete']
+        };
       } catch (e) {
         console.warn('[MultiAgent] GPT-4 alternative fallback failed:', e);
       }
@@ -324,20 +296,14 @@ export class MultiAgentOrchestrator {
         reasoning: data.reasoning || ['Claude ethical analysis complete']
       };
     } catch {
-      // Fallback to direct Gemini API as Claude alternative
+      // Fallback to Bedrock as Claude alternative
       try {
-        const { GoogleGenerativeAI } = await import('@google/generative-ai');
-        const apiKey = getGeminiApiKey();
-        if (apiKey) {
-          const genAI = new GoogleGenerativeAI(apiKey);
-          const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-          const result = await model.generateContent(`Act as an ethical and governance-focused analyst (Claude perspective). ${prompt}`);
-          return {
-            text: result.response.text(),
-            confidence: 0.86,
-            reasoning: ['Gemini-powered Claude alternative ethical analysis complete']
-          };
-        }
+        const text = await invokeBedrockDirect(`Act as an ethical and governance-focused analyst. ${prompt}`);
+        return {
+          text,
+          confidence: 0.86,
+          reasoning: ['Bedrock Claude ethical analysis complete']
+        };
       } catch (e) {
         console.warn('[MultiAgent] Claude alternative fallback failed:', e);
       }

@@ -24,33 +24,13 @@
  * 6. Wikidata (structured verified facts)
  */
 
-import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
+import { invokeBedrockDirect } from './awsBedrockService';
 import { type CityProfile, type CityLeader, type EconomicData } from '../data/globalLocationProfiles';
 import { locationResearchCache } from './locationResearchCache';
 import { autonomousResearchAgent } from './autonomousResearchAgent';
 import { narrativeSynthesisEngine, type EnhancedNarratives } from './narrativeSynthesisEngine';
 
-// Get Gemini API key - works in both Vite and Node environments
-const getGeminiApiKey = (): string => {
-  // Try Vite environment variable first (frontend)
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const meta = import.meta as any;
-    if (meta?.env?.VITE_GEMINI_API_KEY) {
-      console.log('[GLI] Gemini API key found via Vite env');
-      return meta.env.VITE_GEMINI_API_KEY;
-    }
-  } catch (e) {
-    console.warn('[GLI] Could not access Vite env:', e);
-  }
-  // Try process.env (Node/backend)
-  if (typeof process !== 'undefined' && process.env?.GEMINI_API_KEY) {
-    console.log('[GLI] Gemini API key found via process.env');
-    return process.env.GEMINI_API_KEY;
-  }
-  console.warn('[GLI] No Gemini API key found - AI research will fail. Set VITE_GEMINI_API_KEY in your environment.');
-  return '';
-};
+// AI research uses AWS Bedrock (invokeBedrockDirect) — no Gemini key needed
 
 // ==================== TYPES ====================
 
@@ -351,14 +331,7 @@ async function tryDirectGeminiResearch(
   locationQuery: string,
   onProgress?: ProgressCallback
 ): Promise<MultiSourceResult | null> {
-  const apiKey = getGeminiApiKey();
-  
-  if (!apiKey) {
-    console.warn('[GLI Research] No Gemini API key available for direct research');
-    return null;
-  }
-  
-  console.log('[GLI Research] API key found, length:', apiKey.length);
+  console.log('[GLI Research] Using AWS Bedrock for research:', locationQuery);
 
   try {
     onProgress?.({
@@ -471,62 +444,23 @@ async function tryDirectGeminiResearch(
     onProgress?.({
       stage: 'AI Synthesis',
       progress: 40,
-      message: 'Gemini AI synthesizing intelligence from verified sources...'
+      message: 'Bedrock Claude synthesizing intelligence from verified sources...'
     });
 
-    // Call Gemini directly
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ 
-      model: 'gemini-2.0-flash',
-      generationConfig: {
-        temperature: 0.7,
-        maxOutputTokens: 8192,
-      },
-      // Reduce safety settings to avoid blocking public data responses
-      safetySettings: [
-        {
-          category: HarmCategory.HARM_CATEGORY_HARASSMENT,
-          threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
-        },
-        {
-          category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-          threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
-        },
-        {
-          category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
-          threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
-        },
-        {
-          category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-          threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
-        },
-      ]
-    });
-
-    console.log('[GLI Research] Calling Gemini API for:', locationQuery);
-
-    // Enhanced prompt with multi-source verified data
+    // Build prompt with multi-source verified data
     const prompt = LOCATION_INTELLIGENCE_PROMPT(
       locationQuery,
-      enrichedContext.multiSourceSummary, // Use verified multi-source context
+      enrichedContext.multiSourceSummary,
       worldBankData,
       geoData ? { lat: geoData.lat, lon: geoData.lon, country: geoData.country } : null,
       enrichedContext
     );
     console.log('[GLI Research] Prompt length:', prompt.length);
+    console.log('[GLI Research] Calling Bedrock for:', locationQuery);
 
-    // Add timeout for Gemini call
-    const timeoutPromise = new Promise<never>((_, reject) => 
-      setTimeout(() => reject(new Error('Gemini API timeout after 30s')), 30000)
-    );
-
-    const result = await Promise.race([
-      model.generateContent(prompt),
-      timeoutPromise
-    ]);
-    const responseText = result.response.text();
-    console.log('[GLI Research] Gemini response length:', responseText.length);
-    console.log('[GLI Research] Gemini response preview:', responseText.substring(0, 300));
+    const responseText = await invokeBedrockDirect(prompt);
+    console.log('[GLI Research] Bedrock response length:', responseText.length);
+    console.log('[GLI Research] Bedrock response preview:', responseText.substring(0, 300));
 
     onProgress?.({
       stage: 'Processing',
@@ -651,13 +585,6 @@ async function tryDirectGeminiEntityResearch(
   category: QueryCategory,
   onProgress?: ProgressCallback
 ): Promise<MultiSourceResult | null> {
-  const apiKey = getGeminiApiKey();
-
-  if (!apiKey) {
-    console.warn('[GLI Research] No Gemini API key available for entity research');
-    return null;
-  }
-
   try {
     onProgress?.({
       stage: 'Entity Research',
@@ -671,11 +598,7 @@ async function tryDirectGeminiEntityResearch(
     const sourceNames = searchResults.map(r => r.displayLink).filter(Boolean);
     const prompt = ENTITY_INTELLIGENCE_PROMPT(query, wikiData?.extract || null, sourceNames);
 
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-
-    const result = await model.generateContent(prompt);
-    const responseText = result.response.text();
+    const responseText = await invokeBedrockDirect(prompt);
 
     let aiIntelligence: Record<string, unknown> | null = null;
     try {

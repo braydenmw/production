@@ -4,10 +4,9 @@
  * â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
  * 
  * Production: AWS Bedrock (no external API keys needed)
- * Local Dev: Gemini fallback (for testing when not on AWS)
+ * All AI calls route through AWS Bedrock. Gemini removed.
  */
 
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import LiveDataService from './LiveDataService';
 
 const API_BASE = (import.meta as { env?: Record<string, string> })?.env?.VITE_API_BASE_URL || '';
@@ -17,7 +16,7 @@ const API_BASE = (import.meta as { env?: Record<string, string> })?.env?.VITE_AP
 export interface AIResponse {
   text: string;
   model: string;
-  provider: 'bedrock' | 'gemini' | 'fallback';
+  provider: 'bedrock' | 'fallback';
   tokensUsed?: number;
 }
 
@@ -60,46 +59,6 @@ export const isAWSEnvironment = (): boolean => {
   
   // Default: not AWS (use Gemini locally)
   return false;
-};
-
-// ==================== GET GEMINI API KEY ====================
-
-export const getGeminiApiKey = (): string => {
-  // 1. Vite build-time: import.meta.env.VITE_GEMINI_API_KEY (baked at build)
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const meta = import.meta as any;
-    if (meta?.env?.VITE_GEMINI_API_KEY) {
-      return meta.env.VITE_GEMINI_API_KEY;
-    }
-  } catch {
-    // Not in Vite context
-  }
-
-  // 2. Vite define'd process.env.GEMINI_API_KEY (replaced at build time by vite.config.ts)
-  try {
-    if (typeof process !== 'undefined' && process.env?.GEMINI_API_KEY) {
-      return process.env.GEMINI_API_KEY;
-    }
-  } catch {
-    // process not available in browser
-  }
-
-  // 3. Runtime window injection (for AWS ECS/Docker: server can inject into index.html)
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const win = window as any;
-    if (win?.__ENV__?.GEMINI_API_KEY) {
-      return win.__ENV__.GEMINI_API_KEY;
-    }
-    if (win?.__ENV__?.VITE_GEMINI_API_KEY) {
-      return win.__ENV__.VITE_GEMINI_API_KEY;
-    }
-  } catch {
-    // Not in browser or window.__ENV__ not set
-  }
-
-  return '';
 };
 
 // ==================== LIVE DATA ENRICHMENT ====================
@@ -250,70 +209,16 @@ async function invokeBedrockModel(prompt: string, model: string = 'anthropic.cla
   }
 }
 
-// ==================== GEMINI FALLBACK (LOCAL DEV) ====================
-
-async function invokeGemini(prompt: string): Promise<AIResponse> {
-  const apiKey = getGeminiApiKey();
-  
-  if (!apiKey) {
-    throw new Error('Gemini API key is not configured. Set VITE_GEMINI_API_KEY (or GEMINI_API_KEY) to enable real inference.');
-  }
-
-  console.log('[AI Service] Using Gemini for local development');
-
-  // Enhance prompt with live market data if location is mentioned
-  const enhancedPrompt = await enhancePromptWithLiveData(prompt);
-
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ 
-    model: 'gemini-2.0-flash',
-    generationConfig: {
-      temperature: 0.3,
-      maxOutputTokens: 4096,
-    }
-  });
-
-  const result = await model.generateContent(enhancedPrompt);
-  const responseText = result.response.text();
-
-  return {
-    text: responseText,
-    model: 'gemini-2.0-flash',
-    provider: 'gemini'
-  };
-}
-
 // ==================== UNIFIED AI INVOKE ====================
 
 export async function invokeAI(prompt: string): Promise<AIResponse> {
-  const useAWS = isAWSEnvironment();
-  
-  console.log(`[AI Service] Environment: ${useAWS ? 'AWS (Bedrock)' : 'Local (Gemini)'}`);
-  
-  // On AWS: Use Bedrock
-  if (useAWS) {
-    try {
-      return await invokeBedrockModel(prompt);
-    } catch (error) {
-      console.error('[AI Service] Bedrock failed:', error);
-      // On AWS, we don't fallback - just return error
-      return {
-        text: 'AI service temporarily unavailable. Please try again later.',
-        model: 'unavailable',
-        provider: 'fallback'
-      };
-    }
-  }
-  
-  // Local development: Use Gemini
   try {
-    return await invokeGemini(prompt);
+    const enhancedPrompt = await enhancePromptWithLiveData(prompt);
+    return await invokeBedrockModel(enhancedPrompt);
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('[AI Service] Gemini failed:', errorMessage);
-    
+    console.error('[AI Service] Bedrock failed:', error);
     return {
-      text: `AI service error: ${errorMessage}. Check your API key or try again later.`,
+      text: 'AI service temporarily unavailable. Configure VITE_AWS_ACCESS_KEY_ID and VITE_AWS_SECRET_ACCESS_KEY in .env',
       model: 'unavailable',
       provider: 'fallback'
     };
