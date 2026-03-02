@@ -6265,9 +6265,16 @@ Use concrete facts from the case. No template language. Write the complete repor
                     onSelectTier={(tierKey: ReportTierKey, includeAnnotation: boolean) => {
                       setShowReportOptions(false);
                       const tier = ReportLengthRouter.getTier(tierKey);
-                      setInputValue(
-                        `Generate a ${tier.label} (${tier.wordRange} words, ${tier.sectionCount} sections) based on the uploaded document.\n\nRequired sections:\n${tier.sections.map((s, i) => `${i + 1}. ${s}`).join('\n')}${includeAnnotation ? '\n\nAlso prepare key source passage annotations for the annotated PDF export.' : ''}`
-                      );
+                      const docContext = reportOptionsDocTitle
+                        ? `\n\nDocument reference: "${reportOptionsDocTitle}"`
+                        : '';
+                      const prompt = `Generate a full ${tier.label} (${tier.wordRange} words, ${tier.sectionCount} sections) for the uploaded document.${docContext}\n\nInclude ALL of these sections in full:\n${tier.sections.map((s, i) => `${i + 1}. ${s}`).join('\n')}${includeAnnotation ? '\n\nAlso prepare key source passage annotations for the annotated PDF export.' : ''}\n\nWrite the complete document now — do not summarise, abbreviate, or stop early. Each section must be fully written out.`;
+                      setInputValue(prompt);
+                      // Auto-submit after React flushes the state update
+                      setTimeout(() => {
+                        const btn = document.querySelector('[data-send-btn]') as HTMLButtonElement;
+                        btn?.click();
+                      }, 80);
                     }}
                     onAddReport={(_id: string, title: string) => {
                       setRecommendedDocs(prev => {
@@ -6408,6 +6415,7 @@ Use concrete facts from the case. No template language. Write the complete repor
                   rows={1}
                 />
                 <button
+                  data-send-btn
                   onClick={handleSend}
                   disabled={(!inputValue.trim() && uploadedFiles.length === 0) || isLoading}
                   className={`px-6 py-3 text-sm font-medium transition-all flex items-center gap-2 ${
