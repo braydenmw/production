@@ -945,7 +945,7 @@ const BWConsultantOS: React.FC<BWConsultantOSProps> = ({ onOpenWorkspace, embedd
   const [customPilotOptionInput, setCustomPilotOptionInput] = useState('');
   const [customPilotOptions, setCustomPilotOptions] = useState<Array<{ id: string; label: string; prompt: string }>>([]);
   const [pilotOptionMemory, setPilotOptionMemory] = useState<Record<string, { label: string; prompt: string }>>({});
-  const [activeGlobalIssuePack] = useState<string>('energy-transition');
+  const [activeGlobalIssuePack] = useState<string>(''); // not pre-set — resolved from conversation
   const [quickCountryFocus, setQuickCountryFocus] = useState('');
   const [quickBusinessTarget, setQuickBusinessTarget] = useState('');
   const [quickCustomSector] = useState('');
@@ -2796,12 +2796,11 @@ Consultant operating rules:
 - If data is incomplete, ask the single highest-value question that improves decision quality.
 - Convert provided information into action-oriented outputs, not generic commentary.
 
- Live Research context (user selections):
-- Focus area: ${effectivePilotFocusText}
-- Country/region of focus: ${quickCountryFocus || 'Not specified yet'}
-- Business target (who they want to work with): ${quickBusinessTarget || 'Not specified yet'}
-- Industry/sector: ${activeIssuePack.label}${quickCustomSector ? ` (custom: ${quickCustomSector})` : ''}
-${customResearchTopics.length > 0 ? `- Custom research topics the user wants investigated: ${customResearchTopics.join(', ')}` : ''}
+${(quickCountryFocus || quickBusinessTarget || quickCustomSector || customResearchTopics.length > 0) ? `Live Research context (user-configured in Pilot panel):
+${quickCountryFocus ? `- Country/region of focus: ${quickCountryFocus}` : ''}
+${quickBusinessTarget ? `- Business target: ${quickBusinessTarget}` : ''}
+${quickCustomSector ? `- Custom sector: ${quickCustomSector}` : (activeIssuePack.id ? `- Issue pack selected: ${activeIssuePack.label}` : '')}
+${customResearchTopics.length > 0 ? `- Custom research topics: ${customResearchTopics.join(', ')}` : ''}` : '(Pilot panel not configured — operating from conversation context only)'}
 
 Output intent and matching mode:
 - Preferred output mode: ${preferredOutputMode}
@@ -2837,25 +2836,13 @@ ${agentRegistry.current.toManifest()}`;
     if (cs.organizationType.trim()) knownParts.push(`**Type:** ${cs.organizationType}`);
     if (cs.targetAudience.trim()) knownParts.push(`**Audience:** ${cs.targetAudience}`);
 
-    const keywords = trimmed.split(/\s+/).filter(w => w.length > 4).slice(0, 5);
-    const topicsDetected = keywords.length > 0 ? keywords.join(', ') : 'your request';
+    const _keywords = trimmed.split(/\s+/).filter(w => w.length > 4).slice(0, 5);
+    void _keywords; // retained for future debug use
 
-    let reply = `I\u2019ve captured the key elements of your input (${topicsDetected}) and am processing them against my strategic intelligence framework.`;
-
-    if (knownParts.length > 0) {
-      reply += `\n\n**Current case context:**\n${knownParts.join('\n')}`;
-      reply += `\n\nBased on what I know so far, here\u2019s my immediate read:`;
-
-      if (cs.country.trim() && cs.objectives.trim()) {
-        reply += `\n\u2022 Your objective in **${cs.country}** is being tracked. I\u2019m factoring in jurisdiction-specific regulatory and market considerations.`;
-      }
-      if (cs.organizationType.trim()) {
-        reply += `\n\u2022 As a **${cs.organizationType}**, specific compliance and structural considerations apply.`;
-      }
-      if (cs.targetAudience.trim()) {
-        reply += `\n\u2022 Output will be calibrated for **${cs.targetAudience}** decision-making standards.`;
-      }
-    }
+    // Context-aware fallback — no scripted intake phrases
+    let reply = knownParts.length > 0
+      ? `Here's my read based on what you've shared so far:\n\n${knownParts.join('\n')}`
+      : `Tell me more about what you're trying to achieve — I'll give you a direct read on it.`;
 
     const nextQ = !cs.organizationName.trim()
       ? 'Which organisation is the decision owner for this matter?'
@@ -3475,7 +3462,73 @@ ${agentRegistry.current.toManifest()}`;
     let userContent = inputValue.trim();
     const inputSignal = classifyConsultantInput(userContent);
     const extractedSignals = extractConsultantSignals(userContent);
-    
+
+    // ── Sector inference from raw input text ───────────────────────────────
+    const _sectorKeywords: Record<string, string[]> = {
+      'Manufacturing & Industry': ['manufactur', 'factory', 'plant', 'assembly', 'production', 'automotive', 'car', 'vehicle', 'steel', 'cement', 'industrial'],
+      'Agriculture & Food Security': ['farm', 'agri', 'food', 'crop', 'livestock', 'fisheri', 'aquaculture'],
+      'Energy Transition': ['solar', 'wind', 'renewable', 'clean energy', 'battery', 'hydrogen', 'geothermal'],
+      'Digital Infrastructure': ['tech', 'software', 'data centre', 'fintech', 'saas', 'cloud', 'digital', 'ai platform'],
+      'Health Systems': ['hospital', 'pharma', 'medical', 'clinic', 'healthcare', 'health system'],
+      'Mining & Natural Resources': ['mining', 'mineral', 'ore', 'coal', 'gas', 'petroleum', 'lithium', 'copper'],
+      'Logistics & Trade': ['logistics', 'freight', 'shipping', 'port', 'supply chain', 'warehouse', 'corridor'],
+      'Tourism & Hospitality': ['tourism', 'hotel', 'resort', 'hospitality', 'travel'],
+      'Water Security': ['water', 'desalin', 'irrigation', 'sewage', 'sanitation'],
+      'Housing & Construction': ['housing', 'real estate', 'construction', 'property', 'affordable housing'],
+      'Financial Services': ['bank', 'finance', 'investment fund', 'insurance', 'capital market'],
+      'Defence & Security': ['defence', 'defense', 'military', 'security'],
+    };
+    const _lcInput = userContent.toLowerCase();
+    let inferredSector = '';
+    let _bestMatch = 0;
+    for (const [sector, kws] of Object.entries(_sectorKeywords)) {
+      const hits = kws.filter(k => _lcInput.includes(k)).length;
+      if (hits > _bestMatch) { _bestMatch = hits; inferredSector = sector; }
+    }
+
+    // ── Country inference augmented with regions ──────────────────────────
+    const _countryMap: Record<string, string[]> = {
+      'Philippines': ['philippines', 'philippine', 'manila', 'cebu', 'mindanao'],
+      'Vietnam': ['vietnam', 'viet nam', 'hanoi', 'ho chi minh'],
+      'Indonesia': ['indonesia', 'jakarta', 'bali'],
+      'Thailand': ['thailand', 'bangkok', 'thai'],
+      'Malaysia': ['malaysia', 'kuala lumpur'],
+      'Singapore': ['singapore'],
+      'India': ['india', 'mumbai', 'delhi', 'bangalore'],
+      'China': ['china', 'beijing', 'shanghai', 'shenzhen'],
+      'Japan': ['japan', 'tokyo', 'osaka'],
+      'South Korea': ['south korea', 'korea', 'seoul'],
+      'Australia': ['australia', 'sydney', 'melbourne', 'brisbane', 'perth'],
+      'Bangladesh': ['bangladesh', 'dhaka'],
+      'Cambodia': ['cambodia', 'phnom penh'],
+      'Myanmar': ['myanmar', 'yangon'],
+      'Saudi Arabia': ['saudi', 'riyadh'],
+      'UAE': ['uae', 'dubai', 'abu dhabi', 'emirates'],
+      'Kenya': ['kenya', 'nairobi'],
+      'Nigeria': ['nigeria', 'lagos'],
+      'South Africa': ['south africa', 'johannesburg', 'cape town'],
+      'Brazil': ['brazil', 'sao paulo'],
+      'Mexico': ['mexico city', 'mexico'],
+      'USA': ['united states', 'america', '\busa\b'],
+      'UK': ['united kingdom', 'britain', 'london', '\buk\b'],
+      'Germany': ['germany', 'berlin', 'munich'],
+    };
+    let inferredCountry = '';
+    for (const [c, kws] of Object.entries(_countryMap)) {
+      if (kws.some(k => _lcInput.includes(k))) { inferredCountry = c; break; }
+    }
+    // Use region as country fallback
+    const _regionHints: Record<string, string> = {
+      'southeast asia': 'Southeast Asia', 'asean': 'Southeast Asia', 'asia': 'Asia',
+      'africa': 'Africa', 'middle east': 'Middle East', 'pacific': 'Pacific',
+      'latin america': 'Latin America', 'europe': 'Europe',
+    };
+    if (!inferredCountry) {
+      for (const [k, v] of Object.entries(_regionHints)) {
+        if (_lcInput.includes(k)) { inferredCountry = v; break; }
+      }
+    }
+
     const discoveredDocs: DocumentOption[] = [];
 
     // Process uploaded files
@@ -3572,45 +3625,31 @@ ${agentRegistry.current.toManifest()}`;
       setShowReportOptions(true);
     }
 
-    const hasSignalUpdate = Boolean(
-      extractedSignals.userName ||
-      extractedSignals.organizationName ||
-      extractedSignals.organizationType ||
-      extractedSignals.contactRole ||
-      extractedSignals.country ||
-      extractedSignals.jurisdiction ||
-      extractedSignals.objectives ||
-      extractedSignals.currentMatter ||
-      extractedSignals.constraints ||
-      extractedSignals.targetAudience ||
-      extractedSignals.decisionDeadline ||
-      extractedSignals.evidenceNote
-    );
-
     const userMessagePhase = readinessScore < 55 ? 'discovery' : readinessScore < 80 ? 'analysis' : 'recommendations';
 
-    if (hasSignalUpdate) {
-      setCaseStudy(prev => {
-        const next = { ...prev };
-
-        if (extractedSignals.userName && !next.userName.trim()) next.userName = extractedSignals.userName;
-        if (extractedSignals.organizationName && !next.organizationName.trim()) next.organizationName = extractedSignals.organizationName;
-        if (extractedSignals.organizationType && !next.organizationType.trim()) next.organizationType = extractedSignals.organizationType;
-        if (extractedSignals.contactRole && !next.contactRole.trim()) next.contactRole = extractedSignals.contactRole;
-        if (extractedSignals.country && !next.country.trim()) next.country = extractedSignals.country;
-        if (extractedSignals.jurisdiction && !next.jurisdiction.trim()) next.jurisdiction = extractedSignals.jurisdiction;
-        if (extractedSignals.targetAudience && !next.targetAudience.trim()) next.targetAudience = extractedSignals.targetAudience;
-        if (extractedSignals.decisionDeadline && !next.decisionDeadline.trim()) next.decisionDeadline = extractedSignals.decisionDeadline;
-        if (extractedSignals.objectives && next.objectives.trim().length < 20) next.objectives = extractedSignals.objectives;
-        if (extractedSignals.currentMatter && next.currentMatter.trim().length < 60) next.currentMatter = extractedSignals.currentMatter;
-        if (extractedSignals.constraints && next.constraints.trim().length < 20) next.constraints = extractedSignals.constraints;
-        if (extractedSignals.evidenceNote && !next.additionalContext.some((entry) => entry === `Evidence Note: ${extractedSignals.evidenceNote}`)) {
-          next.additionalContext = [...next.additionalContext, `Evidence Note: ${extractedSignals.evidenceNote}`];
-        }
-
-        return next;
-      });
-    }
+    // Apply extracted + inferred signals to case state
+    setCaseStudy(prev => {
+      const next = { ...prev };
+      if (extractedSignals.userName && !next.userName.trim()) next.userName = extractedSignals.userName;
+      if (extractedSignals.organizationName && !next.organizationName.trim()) next.organizationName = extractedSignals.organizationName;
+      // organizationType: prefer inferred sector over entity-type label
+      if (inferredSector && !next.organizationType.trim()) next.organizationType = inferredSector;
+      else if (extractedSignals.organizationType && !next.organizationType.trim()) next.organizationType = extractedSignals.organizationType;
+      if (extractedSignals.contactRole && !next.contactRole.trim()) next.contactRole = extractedSignals.contactRole;
+      // country: prefer regex extract, fall back to NLP infer
+      const bestCountry = extractedSignals.country || inferredCountry;
+      if (bestCountry && !next.country.trim()) next.country = bestCountry;
+      if (extractedSignals.jurisdiction && !next.jurisdiction.trim()) next.jurisdiction = extractedSignals.jurisdiction;
+      if (extractedSignals.targetAudience && !next.targetAudience.trim()) next.targetAudience = extractedSignals.targetAudience;
+      if (extractedSignals.decisionDeadline && !next.decisionDeadline.trim()) next.decisionDeadline = extractedSignals.decisionDeadline;
+      if (extractedSignals.objectives && next.objectives.trim().length < 20) next.objectives = extractedSignals.objectives;
+      if (extractedSignals.currentMatter && next.currentMatter.trim().length < 60) next.currentMatter = extractedSignals.currentMatter;
+      if (extractedSignals.constraints && next.constraints.trim().length < 20) next.constraints = extractedSignals.constraints;
+      if (extractedSignals.evidenceNote && !next.additionalContext.some((entry) => entry === `Evidence Note: ${extractedSignals.evidenceNote}`)) {
+        next.additionalContext = [...next.additionalContext, `Evidence Note: ${extractedSignals.evidenceNote}`];
+      }
+      return next;
+    });
 
     // Add user message
     const userMessage: Message = {
@@ -3634,13 +3673,27 @@ ${agentRegistry.current.toManifest()}`;
         additionalContext: [...prev.additionalContext, userContent]
       }));
 
+      // caseDraft: merge stale React state with THIS turn's extracted+inferred signals
+      // (React state won't have updated yet — we build a local merged copy for the AI call)
       const caseDraft: CaseStudy = {
         ...caseStudy,
         userName: extractedSignals.userName && !caseStudy.userName.trim() ? extractedSignals.userName : caseStudy.userName,
         organizationName: extractedSignals.organizationName && !caseStudy.organizationName.trim() ? extractedSignals.organizationName : caseStudy.organizationName,
-        organizationType: extractedSignals.organizationType && !caseStudy.organizationType.trim() ? extractedSignals.organizationType : caseStudy.organizationType,
+        organizationType: (
+          inferredSector && !caseStudy.organizationType.trim()
+            ? inferredSector
+            : extractedSignals.organizationType && !caseStudy.organizationType.trim()
+              ? extractedSignals.organizationType
+              : caseStudy.organizationType
+        ),
         contactRole: extractedSignals.contactRole && !caseStudy.contactRole.trim() ? extractedSignals.contactRole : caseStudy.contactRole,
-        country: extractedSignals.country && !caseStudy.country.trim() ? extractedSignals.country : caseStudy.country,
+        country: (
+          extractedSignals.country && !caseStudy.country.trim()
+            ? extractedSignals.country
+            : inferredCountry && !caseStudy.country.trim()
+              ? inferredCountry
+              : caseStudy.country
+        ),
         jurisdiction: extractedSignals.jurisdiction && !caseStudy.jurisdiction.trim() ? extractedSignals.jurisdiction : caseStudy.jurisdiction,
         objectives: extractedSignals.objectives && caseStudy.objectives.trim().length < 20 ? extractedSignals.objectives : caseStudy.objectives,
         currentMatter: extractedSignals.currentMatter && caseStudy.currentMatter.trim().length < 60 ? extractedSignals.currentMatter : caseStudy.currentMatter,
@@ -3741,19 +3794,44 @@ ${agentRegistry.current.toManifest()}`;
         // capability-led opening so the AI demonstrates value instead of running a
         // scripted intake questionnaire like a basic chatbot.
         const isOpeningTurn = liveReadiness < 20 || isGreetingOnly;
+
+        // Build a case context block from what was just extracted this turn
+        const thisTurnContext = [
+          caseDraft.organizationType ? `Sector/Industry: ${caseDraft.organizationType}` : null,
+          caseDraft.country ? `Country/Region: ${caseDraft.country}` : null,
+          caseDraft.organizationName ? `Organization: ${caseDraft.organizationName}` : null,
+          caseDraft.objectives ? `Objective: ${caseDraft.objectives}` : null,
+          caseDraft.currentMatter ? `Current matter: ${caseDraft.currentMatter}` : null,
+          caseDraft.contactRole ? `Contact role: ${caseDraft.contactRole}` : null,
+        ].filter(Boolean).join('\n');
+
         const openingInstruction = isOpeningTurn
           ? `You are BW Consultant — a world-class strategic advisory AI backed by the NSIL Agentic Runtime.
 
-This is an opening-turn conversation where the client has provided minimal context so far.
+CRITICAL RULES — READ BEFORE RESPONDING:
+- Do NOT say "I've captured the key elements of your input" — this phrase is BANNED.
+- Do NOT mention "Energy Transition" or "Advance new markets" unless the user explicitly said those words.
+- Do NOT list numbered intake questions ("1) Name 2) Country 3) Decision") — that is scripted chatbot behaviour.
+- Do NOT invent case context that wasn't in the user's message.
 
-Your job is NOT to run a scripted intake form. Do NOT list "1) Name 2) Country 3) Decision" as separate numbered questions — that is basic chatbot behaviour.
+${thisTurnContext ? `## WHAT I EXTRACTED FROM THE USER'S MESSAGE THIS TURN:
+${thisTurnContext}
 
-Instead:
-- If the user said hello or greeted you, briefly (2-3 sentences max) showcase one or two concrete, specific things you can do RIGHT NOW (e.g. "I can draft a market-entry brief for a specific country and sector, structure a government engagement strategy, or produce an investor-ready case study").
-- Then ask ONE open-ended, intelligent question that invites them to describe their actual situation — something like "What are you working on?" or "What's the decision on the table?"
-- Do not ask for their name. Do not ask for their country separately from their context. Let those emerge naturally.
-- Be direct, confident, and concise. Sound like a senior consultant, not a form wizard.`
-          : `Autonomous mixed-initiative mode: answer user intent first, then move the case forward with one highest-value follow-up if required. Do not run scripted intake.`;
+Use this to give a specific, grounded response. Reference their actual sector and region.` : `## NO CASE CONTEXT YET
+The user has provided minimal context. Briefly (2-3 sentences) demonstrate one concrete thing you can do relevant to their message, then ask ONE open natural question about their situation.`}
+
+BEHAVIOUR:
+- Respond DIRECTLY to what the user actually said — show you understood it
+- Sound like a senior consultant starting to engage with a real problem
+- If sector/country/objective can be inferred, show intelligence about THAT topic specifically
+- Ask at most ONE follow-up — the single most valuable missing detail
+- Be concise, direct, and confident`
+          : `Autonomous mixed-initiative mode. BANNED phrases: "I've captured the key elements", numbered intake lists. Answer the user's actual question first.
+
+## CASE CONTEXT THIS TURN:
+${thisTurnContext || 'Continuing from prior turns — see case study JSON above.'}
+
+Respond to the user's intent first, then advance the case with one follow-up if needed.`;
 
         const docUploadBlock = uploadedFiles.length > 0
           ? '\n\nDOCUMENT ANALYSIS PROTOCOL: The user has uploaded ' + uploadedFiles.length + ' document(s). Your FIRST job is to:\n' +
