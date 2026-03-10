@@ -1,9 +1,10 @@
 ﻿// Feature flags and configuration for demo/production modes
 // V6.0 - Nexus Intelligence OS - ALL LIVE DATA BY DEFAULT
 // Uses import.meta.env.VITE_* (Vite) with process.env fallback (SSR / tests)
+type ImportMetaWithEnv = ImportMeta & { env?: Record<string, string | boolean | undefined> };
 const _env = (key: string, fallback = ''): string =>
-  (typeof import.meta !== 'undefined' && (import.meta as any).env?.[key]) ||
-  (typeof process !== 'undefined' && (process as any).env?.[key]) ||
+  String((import.meta as ImportMetaWithEnv).env?.[key] ?? '') ||
+  (typeof process !== 'undefined' ? process.env?.[key] ?? '' : '') ||
   fallback;
 
 export const config = {
@@ -21,8 +22,8 @@ export const config = {
   apiBaseUrl: _env('VITE_API_BASE_URL', 'http://localhost:3001/api'),
 
   // Development flags
-  isDevelopment: _env('NODE_ENV') === 'development' || (typeof import.meta !== 'undefined' && (import.meta as any).env?.DEV),
-  isProduction:  _env('NODE_ENV') === 'production'  || (typeof import.meta !== 'undefined' && (import.meta as any).env?.PROD),
+  isDevelopment: _env('NODE_ENV') === 'development' || Boolean((import.meta as ImportMetaWithEnv).env?.DEV),
+  isProduction:  _env('NODE_ENV') === 'production'  || Boolean((import.meta as ImportMetaWithEnv).env?.PROD),
   
   // Multi-Agent Brain System v6.0 (Nexus Intelligence OS)
   enableMultiAgent: true,

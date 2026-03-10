@@ -180,53 +180,48 @@ export async function runIssuePipeline(input: IssuePipelineInput): Promise<Intel
     (issue as unknown as Record<string, string>)?.issueType ||
     'General advisory';
 
+  type R = Record<string, unknown>;
+
   const rootCauses: string[] =
-    (graph as any)?.rootCauses?.map((n: any) => n.description || String(n)).filter(Boolean).slice(0, 4) ||
-    (issue as any)?.rootCauses?.slice(0, 4) ||
+    ((graph as R)?.rootCauses as R[] | undefined)?.map((n: R) => String(n.description || n)).filter(Boolean).slice(0, 4) ||
+    ((issue as R)?.rootCauses as string[] | undefined)?.slice(0, 4) ||
     [];
 
   const leveragePoints: string[] =
-    (graph as any)?.leveragePoints?.map((n: any) => n.description || String(n)).filter(Boolean).slice(0, 4) ||
-    (issue as any)?.strategicRecommendations?.slice(0, 4) ||
+    ((graph as R)?.leveragePoints as R[] | undefined)?.map((n: R) => String(n.description || n)).filter(Boolean).slice(0, 4) ||
+    ((issue as R)?.strategicRecommendations as string[] | undefined)?.slice(0, 4) ||
     [];
 
   const situationSummary: string =
-    (situation as any)?.executiveSummary ||
-    (situation as any)?.summary ||
-    '';
+    String((situation as R)?.executiveSummary || (situation as R)?.summary || '');
 
   const historicalParallels: string[] = (() => {
-    const matches = (historical as any)?.matches || (historical as any)?.topMatches || [];
-    return matches.slice(0, 3).map((m: any) =>
-      `${m.caseName || m.name || 'Historical case'} (${m.country || ''}, ${m.year || ''}) — ${m.outcome || m.lesson || ''}`
+    const raw = (historical as R);
+    const matches = (raw?.matches as R[] | undefined) || (raw?.topMatches as R[] | undefined) || [];
+    return matches.slice(0, 3).map((m: R) =>
+      `${String(m.caseName || m.name || 'Historical case')} (${String(m.country || '')}, ${String(m.year || '')}) — ${String(m.outcome || m.lesson || '')}`
     ).filter(Boolean);
   })();
 
-  // motivation is TriggeredSignal[] — each has { category, implication, riskLevel, recommendation }
+  type Signal = { riskLevel?: string; implication?: string; recommendation?: string };
   const hiddenRisks: string[] =
     Array.isArray(motivation)
-      ? (motivation as any[]).filter(s => s.riskLevel === 'high' || s.riskLevel === 'critical').slice(0, 3)
-          .map((s: any) => `[${s.riskLevel?.toUpperCase()}] ${s.implication} — ${s.recommendation}`)
-      :
-    [];
+      ? (motivation as Signal[]).filter(s => s.riskLevel === 'high' || s.riskLevel === 'critical').slice(0, 3)
+          .map((s: Signal) => `[${s.riskLevel?.toUpperCase()}] ${s.implication} — ${s.recommendation}`)
+      : [];
 
-  // QuickAssessment has: trustScore, headline, topConcerns, topOpportunities, nextStep
-  const strategicScore: number =
-    (nsил as any)?.trustScore ?? 0;
+  const strategicScore: number = ((nsил as R)?.trustScore as number | undefined) ?? 0;
+  const nsилSummary: string = String((nsил as R)?.headline || '');
 
-  const nsилSummary: string =
-    (nsил as any)?.headline || '';
-
-  // DecisionPipeline returns { packet: DecisionPacket }
-  const decisionFrame: string =
-    (decision as any)?.packet?.summary ||
-    (decision as any)?.packet?.recommendation ||
-    (decision as any)?.summary || '';
+  const dec = decision as R;
+  const pkt = dec?.packet as R | undefined;
+  const decisionFrame: string = String(pkt?.summary || pkt?.recommendation || dec?.summary || '');
 
   const immediateActions: string[] =
-    (decision as any)?.packet?.immediateActions?.slice(0, 3) ||
-    (issue as any)?.implementationRoadmap?.[0]?.keyActions?.slice(0, 3) ||
-    [];
+    (pkt?.immediateActions as string[] | undefined)?.slice(0, 3) ||
+    ((issue as R)?.implementationRoadmap as R[] | undefined)?.[0]
+      ? (((issue as R).implementationRoadmap as R[])[0].keyActions as string[] | undefined)?.slice(0, 3) || []
+      : [];
 
   // ─── Build the prompt block ─────────────────────────────────────────────────
 
