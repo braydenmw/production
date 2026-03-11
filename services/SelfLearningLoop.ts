@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * ═══════════════════════════════════════════════════════════════════════════════
  * BW NEXUS AI — SELF-LEARNING LOOP
@@ -122,7 +121,7 @@ export async function learnFromConversation(
  * Retrieve relevant learnings and format them for injection into the AI prompt.
  * This is the "memory" that makes the AI improve over time.
  */
-export async function getLearningContext(query?: string): Promise<LearningContext> {
+export async function getLearningContext(_query?: string): Promise<LearningContext> {
   const allLearnings = await conversationStore.getLearnings(undefined, 50);
 
   if (allLearnings.length === 0) {
@@ -216,7 +215,7 @@ export async function getQualityPatterns(): Promise<{
       const raw = await summarizeWithAI(
         `Summarize the most common themes from these AI corrections in 3 bullet points:\n${correctionTexts.join('\n')}`
       );
-      commonCorrections.push(...raw.split('\n').filter(l => l.trim().startsWith('•') || l.trim().startsWith('-')).map(l => l.replace(/^[•\-]\s*/, '').trim()));
+      commonCorrections.push(...raw.split('\n').filter(l => l.trim().startsWith('•') || l.trim().startsWith('-')).map(l => l.replace(/^[•-]\s*/, '').trim()));
     } catch {
       commonCorrections.push(...correctionTexts.slice(0, 3));
     }

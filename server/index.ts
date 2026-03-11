@@ -51,13 +51,84 @@ app.use(helmet({
       scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       imgSrc: ["'self'", "data:", "https:", "blob:"],
-      connectSrc: ["'self'", "https://api.worldbank.org", "https://restcountries.com", "https://nominatim.openstreetmap.org", "https://en.wikipedia.org", "https://google.serper.dev", "https://api.perplexity.ai", "https://generativelanguage.googleapis.com", "https://*.amazonaws.com", "https://api.together.xyz"],
+      connectSrc: ["'self'", "https://api.worldbank.org", "https://restcountries.com", "https://nominatim.openstreetmap.org", "https://en.wikipedia.org", "https://google.serper.dev", "https://api.perplexity.ai", "https://generativelanguage.googleapis.com", "https://*.amazonaws.com", "https://api.together.xyz", "https://api.groq.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
       frameSrc: ["'none'"],
     },
   },
   crossOriginEmbedderPolicy: false,
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+  hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
 }));
+
+// ─── Server-Side Security Hardening ─────────────────────────────────────────
+
+// Block requests with suspicious headers
+app.use((req: Request, res: Response, next: NextFunction) => {
+  // Reject requests with extremely long URLs (potential buffer overflow / scanning)
+  if (req.url.length > 4096) {
+    return res.status(414).json({ error: 'URI too long' });
+  }
+
+  // Block null byte injection in URLs
+  if (req.url.includes('\0') || req.url.includes('%00')) {
+    return res.status(400).json({ error: 'Invalid request' });
+  }
+
+  // Block path traversal in URLs
+  if (req.url.includes('..') || req.url.includes('%2e%2e')) {
+    return res.status(400).json({ error: 'Invalid path' });
+  }
+
+  // Strip X-Powered-By (helmet does this too, belt-and-suspenders)
+  res.removeHeader('X-Powered-By');
+
+  // Add additional security headers
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()');
+
+  next();
+});
+
+// Validate and sanitize request bodies for AI endpoints
+app.use('/api/ai', (req: Request, res: Response, next: NextFunction) => {
+  if (req.method !== 'POST' && req.method !== 'PUT') return next();
+  if (!req.body) return next();
+
+  const body = req.body;
+
+  // Check for oversized message payloads
+  if (body.message && typeof body.message === 'string' && body.message.length > 15000) {
+    return res.status(413).json({ error: 'Message too long. Maximum 15,000 characters.' });
+  }
+
+  // Strip null bytes from all string fields
+  for (const key of Object.keys(body)) {
+    if (typeof body[key] === 'string') {
+      body[key] = body[key].replace(/\0/g, '');
+    }
+  }
+
+  // Block prompt injection patterns in server-side requests
+  if (body.message && typeof body.message === 'string') {
+    const msg = body.message;
+    const dangerousPatterns = [
+      /\[system\]|\[INST\]|<\|system\|>|<\|im_start\|>/i,
+      /ignore\s+(?:all\s+)?(?:previous|prior)\s+instructions/i,
+      /<script[\s>]/i,
+      /javascript\s*:/i,
+    ];
+    for (const pattern of dangerousPatterns) {
+      if (pattern.test(msg)) {
+        console.warn(`[SECURITY] Blocked dangerous input pattern: ${pattern.source} from ${req.ip}`);
+        return res.status(400).json({ error: 'Input contains disallowed content.' });
+      }
+    }
+  }
+
+  next();
+});
 
 // Rate limiting — prevent abuse
 const apiLimiter = rateLimit({

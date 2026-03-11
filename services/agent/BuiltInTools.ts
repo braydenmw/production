@@ -9,7 +9,6 @@ import { LiveDataService, ExchangeRateAPI } from '../LiveDataService';
 import { PartnerIntelligenceEngine } from '../PartnerIntelligenceEngine';
 import { CompositeScoreService, type CompositeScoreContext } from '../CompositeScoreService';
 import { researchTopic, interpretScores, analyseWithAI, analyseRootCauses, generateDebate } from '../AIEngineLayer';
-import { webSearch, formatResultsForPrompt } from '../WebSearchGateway';
 import type { PartnerCandidate } from '../PartnerIntelligenceEngine';
 
 export function registerBuiltInTools(registry: AgentToolRegistry): void {

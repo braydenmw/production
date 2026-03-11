@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * ═══════════════════════════════════════════════════════════════════════════════
  * BW NEXUS AI — AI ENGINE LAYER
@@ -24,7 +23,7 @@
  * ═══════════════════════════════════════════════════════════════════════════════
  */
 
-import { classifyWithAI, extractWithAI, summarizeWithAI, reasonWithAI } from './MultiModelRouter';
+import { classifyWithAI, summarizeWithAI, reasonWithAI } from './MultiModelRouter';
 import { webSearch, formatResultsForPrompt } from './WebSearchGateway';
 
 // ─── AI-Enhanced Issue Classification ───────────────────────────────────────

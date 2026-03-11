@@ -40,7 +40,6 @@ import {
   researchTopic,
   generateDebate,
 } from './AIEngineLayer';
-import { webSearch, formatResultsForPrompt } from './WebSearchGateway';
 import { LiveDataService } from './LiveDataService';
 
 // ─── Types ────────────────────────────────────────────────────────────────────

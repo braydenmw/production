@@ -77,7 +77,7 @@ function scoreRelevance(query: string, response: string): EvalDimension {
 function scoreDepth(response: string): EvalDimension {
   const wordCount = response.split(/\s+/).length;
   const paragraphs = response.split(/\n\n+/).filter(p => p.trim().length > 0).length;
-  const hasBullets = /[•\-\*]\s/.test(response);
+  const hasBullets = /[•\-*]\s/.test(response);
   const hasHeaders = /^#{1,4}\s|^\*\*.+\*\*/m.test(response);
   const hasNumbers = /\d+(?:\.\d+)?%|\$[\d,]+|\d+(?:\.\d+)?\s*(?:million|billion|thousand)/i.test(response);
 
@@ -185,7 +185,7 @@ Score each dimension (0-100) with a brief reason. Return ONLY valid JSON:
 ]`;
 
   try {
-    const result = await callTogether(prompt, undefined, { maxTokens: 500, temperature: 0.1 });
+    const result = await callTogether([{ role: 'user', content: prompt }], { maxTokens: 500, temperature: 0.1 });
     const jsonMatch = result.match(/\[[\s\S]*\]/);
     if (!jsonMatch) return [];
     const parsed = JSON.parse(jsonMatch[0]) as Array<{ name: string; score: number; reasoning: string }>;

@@ -225,7 +225,7 @@ export class VectorMemoryIndex {
         industry: params.industry,
         strategicIntent: params.strategicIntent,
         organizationName: params.organizationName,
-        outcome: (params as any).outcome,
+        outcome: params.outcome,
         timestamp: new Date().toISOString()
       }
     };
@@ -259,7 +259,7 @@ export class VectorMemoryIndex {
         industry: params.industry,
         strategicIntent: params.strategicIntent,
         organizationName: params.organizationName,
-        outcome: (params as any).outcome,
+        outcome: params.outcome,
         timestamp: new Date().toISOString()
       }
     };

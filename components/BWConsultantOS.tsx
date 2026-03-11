@@ -77,6 +77,7 @@ import { piiDetectionService } from '../services/PIIDetectionService';
 import { evaluationFramework } from '../services/EvaluationFramework';
 import { monitoringService } from '../services/MonitoringService';
 import { persistentVectorStore } from '../services/PersistentVectorStore';
+import { securityService } from '../services/SecurityHardeningService';
 
 // ============================================================================
 // TYPES
@@ -3798,7 +3799,23 @@ ${agentRegistry.current.toManifest()}`;
   const handleSend = useCallback(async () => {
     if (!inputValue.trim() && uploadedFiles.length === 0) return;
 
-    let userContent = inputValue.trim();
+    // ── Security gate: validate input before AI pipeline ────────────────────
+    const securityCheck = securityService.validateInput(inputValue, 'chat');
+    if (securityCheck.blocked) {
+      const threatNames = securityCheck.threats.map(t => t.description).join(', ');
+      setMessages(prev => [
+        ...prev,
+        {
+          id: `sec-${Date.now()}`,
+          role: 'assistant' as const,
+          content: `**Security Notice:** Your message was blocked for safety reasons (${threatNames}). Please rephrase your question.`,
+          timestamp: new Date(),
+        },
+      ]);
+      return;
+    }
+
+    let userContent = securityCheck.sanitizedInput || inputValue.trim();
     const inputSignal = classifyConsultantInput(userContent);
     const extractedSignals = extractConsultantSignals(userContent);
 
@@ -5114,7 +5131,7 @@ You MUST write each section in full prose, formatted with ## headers, to the spe
     activeIssuePack.label,
     queueAction,
     reportOptionsDocTitle,
-    messages.length
+    messages,
   ]);
 
   // Handle file selection

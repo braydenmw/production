@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * ═══════════════════════════════════════════════════════════════════════════════
  * BW NEXUS AI — REGIONAL INTELLIGENCE AGENT
@@ -21,9 +20,9 @@
  * ═══════════════════════════════════════════════════════════════════════════════
  */
 
-import { webSearch, searchNews, searchGovernment, formatResultsForPrompt } from './WebSearchGateway';
+import { searchNews, searchGovernment, formatResultsForPrompt } from './WebSearchGateway';
 import { classifyIssue, researchTopic, analyseRootCauses } from './AIEngineLayer';
-import { reasonWithAI, summarizeWithAI } from './MultiModelRouter';
+import { reasonWithAI } from './MultiModelRouter';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 

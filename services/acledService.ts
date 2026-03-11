@@ -46,8 +46,8 @@ export async function fetchACLEDEvents(
   country: string,
   limit = 6
 ): Promise<ACLEDEvent[]> {
-  const key = (typeof import.meta !== 'undefined' ? (import.meta as any).env?.VITE_ACLED_KEY : undefined) || '';
-  const email = (typeof import.meta !== 'undefined' ? (import.meta as any).env?.VITE_ACLED_EMAIL : undefined) || '';
+  const key = (typeof import.meta !== 'undefined' ? (import.meta as unknown as Record<string, Record<string, string>>).env?.VITE_ACLED_KEY : undefined) || '';
+  const email = (typeof import.meta !== 'undefined' ? (import.meta as unknown as Record<string, Record<string, string>>).env?.VITE_ACLED_EMAIL : undefined) || '';
   if (!key || !email) return [];
 
   const params = new URLSearchParams({
