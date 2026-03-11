@@ -1,47 +1,86 @@
 // ============================================================================
 // BUILT-IN TOOLS
 // Registers the core BWGA intelligence tools into the AgentToolRegistry.
-// Each tool wraps an existing service and normalises its output for the AI.
+// Each tool wraps real data services + AI analysis for actionable intelligence.
 // ============================================================================
 
 import type { AgentToolRegistry } from './AgentToolRegistry';
 import { LiveDataService, ExchangeRateAPI } from '../LiveDataService';
 import { PartnerIntelligenceEngine } from '../PartnerIntelligenceEngine';
-import { RegionalDevelopmentOrchestrator } from '../RegionalDevelopmentOrchestrator';
 import { CompositeScoreService, type CompositeScoreContext } from '../CompositeScoreService';
+import { researchTopic, interpretScores, analyseWithAI, analyseRootCauses, generateDebate } from '../AIEngineLayer';
+import { webSearch, formatResultsForPrompt } from '../WebSearchGateway';
 import type { PartnerCandidate } from '../PartnerIntelligenceEngine';
 
 export function registerBuiltInTools(registry: AgentToolRegistry): void {
 
-  // ── COUNTRY INTELLIGENCE ─────────────────────────────────────────────────
+  // ── COUNTRY INTELLIGENCE (Real World Bank data + AI interpretation) ───────
   registry.register({
     name: 'get_country_intelligence',
-    description: 'Fetch live macro, trade, risk, and policy signals for any country or jurisdiction via World Bank + aggregated data layers',
+    description: 'Fetch live macro, trade, risk, and policy data for any country via World Bank, Exchange Rate, and REST Countries APIs. Returns real economic data with AI-generated analysis.',
     parameters: {
       country: { type: 'string', description: 'Country name (e.g. "Kenya", "Papua New Guinea")', required: true }
     },
     execute: async (p) => {
-      const data = await LiveDataService.getCountryIntelligence(p.country as string);
-      // Summarise the snapshot in a form the AI can quote directly
+      const country = p.country as string;
+      const data = await LiveDataService.getCountryIntelligence(country);
+
+      // Build summary from REAL API data (correct property paths)
+      const econ = data.economics;
+      const profile = data.profile;
       const lines: string[] = [
-        `Country Intelligence — ${p.country}`,
-        data.gdpGrowth !== undefined ? `GDP Growth: ${data.gdpGrowth}%` : '',
-        data.inflationRate !== undefined ? `Inflation: ${data.inflationRate}%` : '',
-        data.fdiInflows !== undefined ? `FDI Inflows: $${data.fdiInflows}B` : '',
-        data.riskScore !== undefined ? `Risk Score: ${data.riskScore}/100` : '',
-        data.corruptionIndex !== undefined ? `Corruption Index: ${data.corruptionIndex}` : '',
-        data.politicalStability !== undefined ? `Political Stability: ${data.politicalStability}` : '',
-        data.tradeBalance !== undefined ? `Trade Balance: $${data.tradeBalance}B` : '',
-        data.population !== undefined ? `Population: ${(data.population / 1e6).toFixed(1)}M` : '',
-      ].filter(Boolean);
+        `Country Intelligence — ${country}`,
+        `Data Quality: ${data.dataQuality.hasRealData ? '✅ Live data' : '⚠️ Limited data'} | Sources: ${data.dataQuality.sources.join(', ')}`,
+      ];
+
+      if (profile) {
+        lines.push(
+          `Region: ${profile.region} / ${profile.subregion}`,
+          `Capital: ${profile.capital}`,
+          `Languages: ${profile.languages.join(', ')}`,
+          `Currencies: ${profile.currencies.join(', ')}`,
+        );
+      }
+
+      if (econ) {
+        if (econ.population) lines.push(`Population: ${(econ.population / 1e6).toFixed(1)}M`);
+        if (econ.gdpCurrent) lines.push(`GDP: $${(econ.gdpCurrent / 1e9).toFixed(1)}B`);
+        if (econ.gdpGrowth != null) lines.push(`GDP Growth: ${econ.gdpGrowth.toFixed(1)}%`);
+        if (econ.inflation != null) lines.push(`Inflation: ${econ.inflation.toFixed(1)}%`);
+        if (econ.fdiInflows) lines.push(`FDI Inflows: $${(econ.fdiInflows / 1e9).toFixed(1)}B`);
+        if (econ.tradeBalance) lines.push(`Trade Balance: $${(econ.tradeBalance / 1e9).toFixed(1)}B`);
+        if (econ.unemployment != null) lines.push(`Unemployment: ${econ.unemployment.toFixed(1)}%`);
+        if (econ.easeOfBusiness != null) lines.push(`Ease of Business Rank: ${econ.easeOfBusiness}`);
+      }
+
+      if (data.currency) {
+        lines.push(`Exchange Rate: 1 USD = ${data.currency.rate.toFixed(2)} ${profile?.currencies[0] || 'local'}`);
+      }
+
+      // AI interpretation of the economic data
+      let aiAnalysis = '';
+      if (econ && data.dataQuality.hasRealData) {
+        try {
+          const scores: Record<string, number> = {};
+          if (econ.gdpGrowth != null) scores['GDP Growth (%)'] = econ.gdpGrowth;
+          if (econ.inflation != null) scores['Inflation (%)'] = econ.inflation;
+          if (econ.unemployment != null) scores['Unemployment (%)'] = econ.unemployment;
+          if (econ.fdiInflows) scores['FDI Inflows ($B)'] = econ.fdiInflows / 1e9;
+          if (Object.keys(scores).length > 0) {
+            aiAnalysis = await interpretScores(country, scores, 'Regional development and investment context');
+            lines.push(`\nAI Analysis: ${aiAnalysis}`);
+          }
+        } catch { /* AI interpretation optional */ }
+      }
+
       return { success: true, data, latencyMs: 0, summary: lines.join('\n') };
     }
   });
 
-  // ── EXCHANGE RATE ────────────────────────────────────────────────────────
+  // ── EXCHANGE RATE (Real API) ─────────────────────────────────────────────
   registry.register({
     name: 'get_exchange_rate',
-    description: 'Get live exchange rate between two currencies',
+    description: 'Get live exchange rate between two currencies from Open Exchange Rates API',
     parameters: {
       from: { type: 'string', description: 'Source currency code (e.g. "USD")', required: true },
       to: { type: 'string', description: 'Target currency code (e.g. "EUR")', required: true }
@@ -50,7 +89,7 @@ export function registerBuiltInTools(registry: AgentToolRegistry): void {
       try {
         const rate = await ExchangeRateAPI.getRate(p.from as string, p.to as string);
         if (rate !== null) {
-          return { success: true, data: { from: p.from, to: p.to, rate }, latencyMs: 0 };
+          return { success: true, data: { from: p.from, to: p.to, rate }, latencyMs: 0, summary: `1 ${p.from} = ${rate.toFixed(4)} ${p.to}` };
         }
         return { success: false, data: null, error: `Rate not available for ${p.from}→${p.to}`, latencyMs: 0 };
       } catch (e) {
@@ -59,10 +98,10 @@ export function registerBuiltInTools(registry: AgentToolRegistry): void {
     }
   });
 
-  // ── PARTNER SCORING ──────────────────────────────────────────────────────
+  // ── PARTNER SCORING (Heuristic scores + AI reasoning) ────────────────────
   registry.register({
     name: 'score_partner',
-    description: 'Score and rank a potential partner using PVI/CIS/CCS/RFI/SRA/FRS algorithms. Pass a list of candidates.',
+    description: 'Score and rank potential partners using PVI/CIS/CCS/RFI/SRA/FRS algorithms with AI-generated reasoning about each candidate.',
     parameters: {
       country: { type: 'string', description: 'Engagement country', required: true },
       sector: { type: 'string', description: 'Sector (government / banking / corporate / multilateral)', required: true },
@@ -72,7 +111,6 @@ export function registerBuiltInTools(registry: AgentToolRegistry): void {
     },
     execute: async (p) => {
       const names = String(p.candidateNames ?? '').split(',').map(n => n.trim()).filter(Boolean);
-      // Build minimal PartnerCandidate objects — the engine will derive scores from context
       const candidates: PartnerCandidate[] = names.map((name, i) => ({
         id: `p${i}`,
         name,
@@ -93,18 +131,33 @@ export function registerBuiltInTools(registry: AgentToolRegistry): void {
         candidates
       });
 
+      // Add AI-generated reasoning about why these partners fit
+      let aiReasoning = '';
+      try {
+        const debate = await generateDebate(
+          `${names.join(', ')} as partners for ${p.objective || 'regional development'} in ${p.country}`,
+          `Sector: ${p.sector}. ${p.constraints || ''}`
+        );
+        aiReasoning = debate.synthesis || '';
+      } catch { /* AI reasoning optional */ }
+
       const summary = ranked
         .map(r => `${r.partner.name}: ${r.score.total}/100 — ${r.reasons.join(', ')}`)
         .join('\n');
 
-      return { success: true, data: ranked, latencyMs: 0, summary };
+      return {
+        success: true,
+        data: ranked,
+        latencyMs: 0,
+        summary: summary + (aiReasoning ? `\n\nAI Assessment: ${aiReasoning}` : '')
+      };
     }
   });
 
-  // ── REGIONAL DEVELOPMENT KERNEL ──────────────────────────────────────────
+  // ── REGIONAL DEVELOPMENT ANALYSIS (AI-powered research + real data) ──────
   registry.register({
     name: 'run_regional_kernel',
-    description: 'Run the Regional Development Kernel: generates ranked interventions, partner recommendations, execution plan, and governance readiness score for a region/sector/objective',
+    description: 'Run AI-powered regional development analysis: researches the region, analyses root causes, and generates intervention recommendations using real data and AI reasoning.',
     parameters: {
       country: { type: 'string', description: 'Country', required: true },
       jurisdiction: { type: 'string', description: 'Jurisdiction or sub-region', required: true },
@@ -114,39 +167,68 @@ export function registerBuiltInTools(registry: AgentToolRegistry): void {
       constraints: { type: 'string', description: 'Constraints or boundary conditions' }
     },
     execute: async (p) => {
-      const result = RegionalDevelopmentOrchestrator.run({
-        country: p.country as string,
-        jurisdiction: p.jurisdiction as string,
-        sector: p.sector as string,
-        objective: p.objective as string,
-        currentMatter: String(p.currentMatter ?? p.objective),
-        constraints: String(p.constraints ?? ''),
-        regionProfile: '',
-        fundingEnvelope: '',
-        governanceContext: '',
-        evidenceNotes: [],
-        partnerCandidates: []
-      });
+      const country = p.country as string;
+      const jurisdiction = p.jurisdiction as string;
+      const sector = p.sector as string;
+      const objective = p.objective as string;
+      const context = `Country: ${country}, Region: ${jurisdiction}, Sector: ${sector}. ${p.constraints || ''}`;
 
-      const topInterventions = result.interventions
-        .slice(0, 3)
-        .map(i => `• ${i.title} (score ${i.score}): ${i.rationale}`)
-        .join('\n');
+      // Run AI research + root cause analysis + live data in parallel
+      const [researchResult, rootCauseResult, liveDataResult] = await Promise.allSettled([
+        researchTopic(`${objective} ${jurisdiction} ${country} ${sector} regional development`),
+        analyseRootCauses(
+          String(p.currentMatter || objective),
+          context
+        ),
+        LiveDataService.getCountryIntelligence(country),
+      ]);
 
-      const summary = [
-        `Governance Readiness: ${result.governanceReadiness}/100`,
-        `Top Interventions:\n${topInterventions}`,
-        result.notes.length > 0 ? `Notes: ${result.notes.slice(0, 3).join('; ')}` : ''
-      ].filter(Boolean).join('\n');
+      const research = researchResult.status === 'fulfilled' ? researchResult.value : null;
+      const rootCause = rootCauseResult.status === 'fulfilled' ? rootCauseResult.value : null;
+      const liveData = liveDataResult.status === 'fulfilled' ? liveDataResult.value : null;
 
-      return { success: true, data: result, latencyMs: 0, summary };
+      const summaryParts: string[] = [];
+
+      if (liveData?.economics?.gdpGrowth != null) {
+        summaryParts.push(`${country} GDP Growth: ${liveData.economics.gdpGrowth.toFixed(1)}%`);
+      }
+
+      if (rootCause?.rootCauses?.length) {
+        summaryParts.push(`\nRoot Causes:\n${rootCause.rootCauses.slice(0, 3).map(rc => `• ${rc.cause} [${rc.severity}]`).join('\n')}`);
+      }
+
+      if (rootCause?.interventionPoints?.length) {
+        summaryParts.push(`\nIntervention Points:\n${rootCause.interventionPoints.slice(0, 3).map(ip => `• ${ip.point} (${ip.expectedImpact}, ${ip.difficulty})`).join('\n')}`);
+      }
+
+      if (research?.keyFindings?.length) {
+        summaryParts.push(`\nResearch Findings:\n${research.keyFindings.slice(0, 3).map(f => `• ${f}`).join('\n')}`);
+      }
+
+      if (research?.dataPoints?.length) {
+        summaryParts.push(`\nData Points:\n${research.dataPoints.slice(0, 3).map(d => `• ${d.label}: ${d.value} (${d.source})`).join('\n')}`);
+      }
+
+      return {
+        success: true,
+        data: {
+          research,
+          rootCause,
+          liveData: liveData?.economics || null,
+          interventions: rootCause?.interventionPoints || [],
+          governanceReadiness: research ? Math.round(research.confidence * 100) : 0,
+          notes: rootCause?.systemicPatterns || []
+        },
+        latencyMs: 0,
+        summary: summaryParts.join('\n') || 'Analysis completed — no specific findings for this region/sector.'
+      };
     }
   });
 
-  // ── COMPOSITE SCORE ──────────────────────────────────────────────────────
+  // ── COMPOSITE SCORE (Heuristic calculation + AI interpretation) ──────────
   registry.register({
     name: 'calculate_composite_scores',
-    description: 'Calculate the full suite of BWGA composite indices (HDI, GEI, ESG, ICI, GEDI, RRDI, QGI) for a country and sector',
+    description: 'Calculate the full suite of BWGA composite indices for a country and sector, with AI narrative interpretation',
     parameters: {
       country: { type: 'string', description: 'Country', required: true },
       sector: { type: 'string', description: 'Sector context' },
@@ -163,7 +245,7 @@ export function registerBuiltInTools(registry: AgentToolRegistry): void {
       const scores = await CompositeScoreService.getScores(ctx);
       const c = scores.components;
 
-      const summary = [
+      const scoreSummary = [
         `Overall: ${scores.overall?.toFixed(1) ?? 'N/A'}/100`,
         `Infrastructure: ${c.infrastructure?.toFixed(1)}`,
         `Market Access: ${c.marketAccess?.toFixed(1)}`,
@@ -174,7 +256,102 @@ export function registerBuiltInTools(registry: AgentToolRegistry): void {
         `Sustainability: ${c.sustainability?.toFixed(1)}`,
       ].join(' | ');
 
-      return { success: true, data: scores, latencyMs: 0, summary };
+      // Add AI interpretation of scores
+      let aiNarrative = '';
+      try {
+        const numericScores: Record<string, number> = {};
+        for (const [k, v] of Object.entries(c)) {
+          if (typeof v === 'number') numericScores[k] = v;
+        }
+        aiNarrative = await interpretScores(
+          p.country as string,
+          numericScores,
+          p.sector ? `Sector: ${p.sector}` : undefined
+        );
+      } catch { /* AI interpretation optional */ }
+
+      return {
+        success: true,
+        data: scores,
+        latencyMs: 0,
+        summary: scoreSummary + (aiNarrative ? `\n\nAI Interpretation: ${aiNarrative}` : '')
+      };
+    }
+  });
+
+  // ── RESEARCH TOPIC (New — AI-powered web research) ───────────────────────
+  registry.register({
+    name: 'research_topic',
+    description: 'Research any topic using live web search + AI synthesis. Returns factual findings, data points, and an analytical summary. Use for current data, policy analysis, market intelligence.',
+    parameters: {
+      query: { type: 'string', description: 'Research question or topic', required: true },
+      country: { type: 'string', description: 'Country context for the research' },
+    },
+    execute: async (p) => {
+      const query = p.country
+        ? `${p.query} ${p.country}`
+        : p.query as string;
+
+      const result = await researchTopic(query);
+
+      const lines: string[] = [];
+      if (result.aiSynthesis) lines.push(`Summary: ${result.aiSynthesis}`);
+      if (result.keyFindings.length) {
+        lines.push(`\nKey Findings:\n${result.keyFindings.map(f => `• ${f}`).join('\n')}`);
+      }
+      if (result.dataPoints.length) {
+        lines.push(`\nData Points:\n${result.dataPoints.map(d => `• ${d.label}: ${d.value} (${d.source})`).join('\n')}`);
+      }
+      lines.push(`\nConfidence: ${(result.confidence * 100).toFixed(0)}%`);
+
+      return {
+        success: true,
+        data: result,
+        latencyMs: 0,
+        summary: lines.join('\n')
+      };
+    }
+  });
+
+  // ── ANALYSE SITUATION (New — AI 7-perspective analysis) ──────────────────
+  registry.register({
+    name: 'analyse_situation',
+    description: 'Run a deep AI-powered situation analysis from 7 strategic perspectives: Explicit Needs, Implicit Needs, Unconsidered Needs, Contrarian View, Historical Parallel, Stakeholder View, Time-Horizon Divergence.',
+    parameters: {
+      situation: { type: 'string', description: 'The situation or problem to analyse', required: true },
+      country: { type: 'string', description: 'Country context' },
+      sector: { type: 'string', description: 'Sector context' },
+      objective: { type: 'string', description: 'Strategic objective' },
+    },
+    execute: async (p) => {
+      const result = await analyseWithAI(p.situation as string, {
+        country: p.country as string | undefined,
+        sector: p.sector as string | undefined,
+        objective: p.objective as string | undefined,
+      });
+
+      const lines: string[] = [];
+      for (const persp of result.perspectives) {
+        lines.push(`**${persp.viewpoint}** (confidence: ${(persp.confidence * 100).toFixed(0)}%)`);
+        lines.push(persp.analysis);
+        if (persp.actionItems.length) {
+          lines.push(`Actions: ${persp.actionItems.join('; ')}`);
+        }
+        lines.push('');
+      }
+      if (result.blindSpots.length) {
+        lines.push(`Blind Spots: ${result.blindSpots.join('; ')}`);
+      }
+      if (result.synthesisNarrative) {
+        lines.push(`\nSynthesis: ${result.synthesisNarrative}`);
+      }
+
+      return {
+        success: true,
+        data: result,
+        latencyMs: 0,
+        summary: lines.join('\n')
+      };
     }
   });
 
@@ -191,7 +368,6 @@ export function registerBuiltInTools(registry: AgentToolRegistry): void {
       const situation = String(p.situation).toLowerCase();
       const audience = String(p.audience ?? '').toLowerCase();
 
-      // Simple rule-based routing matching DocumentTypeRouter logic
       let recommendation = 'Situation Assessment Report';
       const docs: string[] = [];
 

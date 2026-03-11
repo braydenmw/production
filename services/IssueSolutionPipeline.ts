@@ -33,14 +33,15 @@
  * ═══════════════════════════════════════════════════════════════════════════════
  */
 
-import { GlobalIssueResolver } from './GlobalIssueResolver';
-import { SituationAnalysisEngine } from './SituationAnalysisEngine';
-import { ProblemToSolutionGraphService } from './ProblemToSolutionGraphService';
-import { HistoricalParallelMatcher } from './HistoricalParallelMatcher';
-import MotivationDetector from './MotivationDetector';
-import { NSILIntelligenceHub } from './NSILIntelligenceHub';
-import { DecisionPipeline } from './DecisionPipeline';
-import type { ReportParameters } from '../types';
+import {
+  classifyIssue,
+  analyseWithAI,
+  analyseRootCauses,
+  researchTopic,
+  generateDebate,
+} from './AIEngineLayer';
+import { webSearch, formatResultsForPrompt } from './WebSearchGateway';
+import { LiveDataService } from './LiveDataService';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -87,175 +88,177 @@ export interface IntelligenceBlock {
 
 // ─── Param builder ────────────────────────────────────────────────────────────
 
-function toReportParams(input: IssuePipelineInput): ReportParameters {
-  return {
-    organizationName: input.organizationName || 'Unknown Organisation',
-    country: input.country || '',
-    specificOpportunity: input.currentMatter || input.issue,
-    strategicIntent: input.objectives ? [input.objectives] : [],
-    sector: input.sector || input.organizationType || 'General',
-    organizationType: input.organizationType || '',
-    currentMatter: input.currentMatter || input.issue,
-    objectives: input.objectives || '',
-    constraints: input.constraints || '',
-    uploadedDocuments: input.uploadedDocuments || [],
-  } as unknown as ReportParameters;
-}
-
 // ─── Pipeline ─────────────────────────────────────────────────────────────────
 
 export async function runIssuePipeline(input: IssuePipelineInput): Promise<IntelligenceBlock> {
-  const params = toReportParams(input);
+  const contextStr = [
+    input.country && `Country: ${input.country}`,
+    input.sector && `Sector: ${input.sector}`,
+    input.objectives && `Objectives: ${input.objectives}`,
+    input.constraints && `Constraints: ${input.constraints}`,
+  ].filter(Boolean).join(' | ');
 
-  // Run all engines in parallel — none block each other
+  const fullQuery = input.currentMatter
+    ? `${input.issue}\n\nContext: ${input.currentMatter}`
+    : input.issue;
+
+  // ─── Run ALL AI engines in parallel — every one calls real LLM ────────────
+
   const [
-    issueResult,
+    classificationResult,
+    rootCauseResult,
     situationResult,
-    problemGraph,
-    historicalResult,
-    motivationResult,
-    nsилResult,
-    decisionResult,
+    researchResult,
+    debateResult,
+    liveDataResult,
   ] = await Promise.allSettled([
 
-    // 1. GlobalIssueResolver — what kind of issue is this?
-    //    Instance method — must instantiate
+    // 1. AI Issue Classification (replaces GlobalIssueResolver keyword matching)
+    classifyIssue(input.issue),
+
+    // 2. AI Root Cause Analysis (replaces ProblemToSolutionGraph templates)
+    analyseRootCauses(fullQuery, contextStr),
+
+    // 3. AI 7-Perspective Situation Analysis (replaces SituationAnalysisEngine templates)
+    analyseWithAI(fullQuery, {
+      country: input.country,
+      sector: input.sector,
+      objective: input.objectives,
+    }),
+
+    // 4. AI Web Research for real data (replaces HistoricalParallelMatcher fake cases)
+    researchTopic(
+      input.country
+        ? `${input.issue} ${input.country} regional development policy data`
+        : `${input.issue} regional development policy`
+    ),
+
+    // 5. AI Debate — balanced arguments for/against (replaces PersonaEngine field validation)
+    generateDebate(
+      input.objectives || input.issue,
+      contextStr
+    ),
+
+    // 6. Real live data from World Bank + Exchange Rate APIs
     (async () => {
-      try { return await new GlobalIssueResolver().resolveIssue(input.issue); } catch { return null; }
-    })(),
-
-    // 2. SituationAnalysisEngine — 7 perspectives on the situation
-    Promise.resolve().then(() => {
-      try { return SituationAnalysisEngine.analyse(params); } catch { return null; }
-    }),
-
-    // 3. ProblemToSolutionGraphService — root causes → leverage points
-    Promise.resolve().then(() => {
-      try {
-        return ProblemToSolutionGraphService.buildGraph({
-          currentMatter: input.currentMatter || input.issue,
-          objectives: input.objectives || '',
-          constraints: input.constraints || '',
-          evidenceNotes: input.uploadedDocuments || [],
-        });
-      } catch { return null; }
-    }),
-
-    // 4. HistoricalParallelMatcher — real historical cases
-    Promise.resolve().then(() => {
-      try { return HistoricalParallelMatcher.match(params); } catch { return null; }
-    }),
-
-    // 5. MotivationDetector — scans all case context text for risk signals
-    //    Takes ReportParameters (not raw string)
-    Promise.resolve().then(() => {
-      try { return MotivationDetector.scanForTriggers(params as unknown as ReportParameters); } catch { return null; }
-    }),
-
-    // 6. NSILIntelligenceHub — quick strategic assessment score
-    Promise.resolve().then(() => {
-      try { return NSILIntelligenceHub.quickAssess(params); } catch { return null; }
-    }),
-
-    // 7. DecisionPipeline — structured decision packet
-    (async () => {
-      try { return await DecisionPipeline.run(params as unknown as ReportParameters); } catch { return null; }
+      if (!input.country) return null;
+      try { return await LiveDataService.getCountryIntelligence(input.country); } catch { return null; }
     })(),
   ]);
 
   // ─── Unpack results (all optional — any failures are non-blocking) ──────────
 
-  const issue = issueResult.status === 'fulfilled' ? issueResult.value : null;
+  const classification = classificationResult.status === 'fulfilled' ? classificationResult.value : null;
+  const rootCause = rootCauseResult.status === 'fulfilled' ? rootCauseResult.value : null;
   const situation = situationResult.status === 'fulfilled' ? situationResult.value : null;
-  const graph = problemGraph.status === 'fulfilled' ? problemGraph.value : null;
-  const historical = historicalResult.status === 'fulfilled' ? historicalResult.value : null;
-  const motivation = motivationResult.status === 'fulfilled' ? motivationResult.value : null;
-  const nsил = nsилResult.status === 'fulfilled' ? nsилResult.value : null;
-  const decision = decisionResult.status === 'fulfilled' ? decisionResult.value : null;
+  const research = researchResult.status === 'fulfilled' ? researchResult.value : null;
+  const debate = debateResult.status === 'fulfilled' ? debateResult.value : null;
+  const liveData = liveDataResult.status === 'fulfilled' ? liveDataResult.value : null;
 
-  // ─── Extract key intelligence ───────────────────────────────────────────────
+  // ─── Extract key intelligence from AI results ────────────────────────────
 
   const issueClassification: string =
-    (issue as unknown as Record<string, string>)?.issueCategory ||
-    (issue as unknown as Record<string, string>)?.issueType ||
-    'General advisory';
-
-  type R = Record<string, unknown>;
+    classification
+      ? `${classification.category} / ${classification.subcategory} (AI confidence: ${(classification.confidence * 100).toFixed(0)}%)`
+      : 'General advisory';
 
   const rootCauses: string[] =
-    ((graph as R)?.rootCauses as R[] | undefined)?.map((n: R) => String(n.description || n)).filter(Boolean).slice(0, 4) ||
-    ((issue as R)?.rootCauses as string[] | undefined)?.slice(0, 4) ||
-    [];
+    rootCause?.rootCauses?.slice(0, 4).map(rc => `${rc.cause} [${rc.severity}] — ${rc.evidence}`) || [];
 
   const leveragePoints: string[] =
-    ((graph as R)?.leveragePoints as R[] | undefined)?.map((n: R) => String(n.description || n)).filter(Boolean).slice(0, 4) ||
-    ((issue as R)?.strategicRecommendations as string[] | undefined)?.slice(0, 4) ||
-    [];
+    rootCause?.interventionPoints?.slice(0, 4).map(ip => `${ip.point} → Expected: ${ip.expectedImpact} (${ip.difficulty})`) || [];
 
   const situationSummary: string =
-    String((situation as R)?.executiveSummary || (situation as R)?.summary || '');
+    situation?.synthesisNarrative ||
+    situation?.perspectives?.map(p => `**${p.viewpoint}:** ${p.analysis}`).join('\n\n') ||
+    '';
 
-  const historicalParallels: string[] = (() => {
-    const raw = (historical as R);
-    const matches = (raw?.matches as R[] | undefined) || (raw?.topMatches as R[] | undefined) || [];
-    return matches.slice(0, 3).map((m: R) =>
-      `${String(m.caseName || m.name || 'Historical case')} (${String(m.country || '')}, ${String(m.year || '')}) — ${String(m.outcome || m.lesson || '')}`
-    ).filter(Boolean);
-  })();
+  // Real research replaces fake historical cases
+  const historicalParallels: string[] =
+    research?.keyFindings?.slice(0, 5) || [];
 
-  type Signal = { riskLevel?: string; implication?: string; recommendation?: string };
+  // Debate "against" arguments serve as risk detection (replaces MotivationDetector)
   const hiddenRisks: string[] =
-    Array.isArray(motivation)
-      ? (motivation as Signal[]).filter(s => s.riskLevel === 'high' || s.riskLevel === 'critical').slice(0, 3)
-          .map((s: Signal) => `[${s.riskLevel?.toUpperCase()}] ${s.implication} — ${s.recommendation}`)
-      : [];
+    debate?.againstArguments?.slice(0, 4).map(a => `[Risk] ${a.point} — ${a.evidence}`) || [];
 
-  const strategicScore: number = ((nsил as R)?.trustScore as number | undefined) ?? 0;
-  const nsилSummary: string = String((nsил as R)?.headline || '');
+  // Research confidence as strategic score
+  const strategicScore: number = research
+    ? Math.round(research.confidence * 100)
+    : 0;
 
-  const dec = decision as R;
-  const pkt = dec?.packet as R | undefined;
-  const decisionFrame: string = String(pkt?.summary || pkt?.recommendation || dec?.summary || '');
+  // Live economic data as NSIL summary (replaces fake NSIL trust score)
+  const econ = liveData?.economics;
+  const nsилSummary: string = econ
+    ? `Live data: GDP Growth ${econ.gdpGrowth?.toFixed(1) ?? 'N/A'}%, Inflation ${econ.inflation?.toFixed(1) ?? 'N/A'}%, FDI $${econ.fdiInflows ? (econ.fdiInflows / 1e9).toFixed(1) + 'B' : 'N/A'}, Population ${econ.population ? (econ.population / 1e6).toFixed(1) + 'M' : 'N/A'} (Source: World Bank)`
+    : '';
 
-  const immediateActions: string[] =
-    (pkt?.immediateActions as string[] | undefined)?.slice(0, 3) ||
-    ((issue as R)?.implementationRoadmap as R[] | undefined)?.[0]
-      ? (((issue as R).implementationRoadmap as R[])[0].keyActions as string[] | undefined)?.slice(0, 3) || []
-      : [];
+  // Debate synthesis as decision frame
+  const decisionFrame: string = debate
+    ? `${debate.synthesis}\n\n**Recommendation:** ${debate.recommendation}`
+    : '';
+
+  const immediateActions: string[] = [
+    ...(classification?.suggestedApproaches?.slice(0, 2) || []),
+    ...(rootCause?.interventionPoints?.slice(0, 1).map(ip => ip.point) || []),
+  ].slice(0, 3);
 
   // ─── Build the prompt block ─────────────────────────────────────────────────
 
   const sections: string[] = [];
 
-  sections.push(`## ISSUE INTELLIGENCE BRIEF`);
+  sections.push(`## ISSUE INTELLIGENCE BRIEF (AI-Analysed)`);
   sections.push(`**Issue type:** ${issueClassification}`);
 
+  if (classification?.reasoning) {
+    sections.push(`**AI reasoning:** ${classification.reasoning}`);
+  }
+
   if (rootCauses.length) {
-    sections.push(`\n**Root causes identified:**\n${rootCauses.map(c => `• ${c}`).join('\n')}`);
+    sections.push(`\n**Root causes identified (AI analysis):**\n${rootCauses.map(c => `• ${c}`).join('\n')}`);
   }
 
   if (leveragePoints.length) {
-    sections.push(`\n**Key leverage points (where intervention has highest impact):**\n${leveragePoints.map(l => `• ${l}`).join('\n')}`);
+    sections.push(`\n**Intervention points (ranked by impact):**\n${leveragePoints.map(l => `• ${l}`).join('\n')}`);
   }
 
   if (situationSummary) {
-    sections.push(`\n**Situation analysis (7 perspectives):**\n${situationSummary}`);
+    sections.push(`\n**Situation analysis (7 AI perspectives):**\n${situationSummary}`);
+  }
+
+  if (situation?.blindSpots?.length) {
+    sections.push(`\n**Blind spots identified:**\n${situation.blindSpots.map(b => `• ${b}`).join('\n')}`);
+  }
+
+  if (situation?.unconsideredNeeds?.length) {
+    sections.push(`\n**Unconsidered needs:**\n${situation.unconsideredNeeds.map(n => `• ${n}`).join('\n')}`);
   }
 
   if (historicalParallels.length) {
-    sections.push(`\n**Historical parallels (matched cases):**\n${historicalParallels.map(h => `• ${h}`).join('\n')}`);
+    sections.push(`\n**Key research findings:**\n${historicalParallels.map(h => `• ${h}`).join('\n')}`);
+  }
+
+  if (research?.dataPoints?.length) {
+    sections.push(`\n**Data points (from web research):**\n${research.dataPoints.map(d => `• ${d.label}: ${d.value} (${d.source})`).join('\n')}`);
   }
 
   if (hiddenRisks.length) {
-    sections.push(`\n**Hidden risks / signals detected:**\n${hiddenRisks.map(r => `• ${r}`).join('\n')}`);
+    sections.push(`\n**Counter-arguments and risks:**\n${hiddenRisks.map(r => `• ${r}`).join('\n')}`);
+  }
+
+  if (debate?.forArguments?.length) {
+    sections.push(`\n**Supporting arguments:**\n${debate.forArguments.slice(0, 3).map(a => `• ${a.point} — ${a.evidence}`).join('\n')}`);
+  }
+
+  if (nsилSummary) {
+    sections.push(`\n**Live economic indicators:** ${nsилSummary}`);
   }
 
   if (strategicScore > 0) {
-    sections.push(`\n**NSIL strategic score:** ${strategicScore}/100${nsилSummary ? `\n${nsилSummary}` : ''}`);
+    sections.push(`\n**Research confidence:** ${strategicScore}/100`);
   }
 
   if (decisionFrame) {
-    sections.push(`\n**Decision framework:** ${decisionFrame}`);
+    sections.push(`\n**Decision framework:**\n${decisionFrame}`);
   }
 
   if (immediateActions.length) {
@@ -264,7 +267,7 @@ export async function runIssuePipeline(input: IssuePipelineInput): Promise<Intel
 
   const promptBlock = sections.join('\n');
 
-  const complete = [issue, situation, graph, historical, nsил].filter(Boolean).length >= 3;
+  const complete = [classification, rootCause, situation, research, debate].filter(Boolean).length >= 3;
 
   return {
     issueClassification,

@@ -3059,25 +3059,10 @@ ${agentRegistry.current.toManifest()}`;
       // Extract the topic from the question for a direct response
       const topicMatch = trimmed.match(/^(?:tell me(?:\s+more)?\s+about|more about|what is|what are|who is|explain|describe|give me info(?: on| about)?|can you tell me about|i want to know(?:\s+more)?\s+about|what do you know about|research|find out about|background (?:on|about))\s+(.+)/i);
       const topic = topicMatch?.[1]?.trim() || trimmed;
-      // Detect if it's a person query vs location/topic query
-      const isPersonQuery = /^(mayor|governor|president|minister|ceo|director|secretary|senator|congressman|general|admiral|chief)\s+/i.test(topic) || /\b(mayor|governor|minister|ceo|director)\b/i.test(topic);
-      const isLocationQuery = /\b(city|province|region|state|country|district|municipality|barangay|island)\b/i.test(topic) || /\b(mindanao|luzon|visayas|pagadian|davao|cebu|manila|zamboanga)\b/i.test(topic);
-      if (isPersonQuery) {
-        return `## ${topic}\n\nSearching live intelligence sources for **${topic}**. Here is what the NSIL system has gathered:\n\n` +
-          `**Profile:** ${topic} — public official identified in the query. The system is cross-referencing governance databases, public records, and regional political intelligence to build a comprehensive profile.\n\n` +
-          `**What I can tell you now:** The NSIL engines have been activated to pull leadership data, political alignment, policy priorities, institutional relationships, and stakeholder mapping for this official and their jurisdiction.\n\n` +
-          `If you need a deeper engagement strategy or risk assessment for this official's administration, I can run the full advisory analysis.${brainSection}`;
-      }
-      if (isLocationQuery) {
-        return `## ${topic}\n\nHere is the intelligence profile the NSIL system has built for **${topic}**:\n\n` +
-          `**Geographic & Political Context:** ${topic} — the system is pulling governance structure, economic fundamentals, key industries, infrastructure status, demographics, and current development projects.\n\n` +
-          `**Economic Profile:** Regional GDP indicators, investment climate assessment, trade connectivity, and strategic advantages are being cross-referenced across World Bank, UN Comtrade, and open-source intelligence databases.\n\n` +
-          `**Governance:** Political leadership structure, regulatory environment, and institutional stability assessment from the NSIL compliance and governance engines.\n\n` +
-          `If you want me to go deeper on any specific dimension — investment feasibility, political risk, stakeholder mapping, or market entry strategy — just say the word.${brainSection}`;
-      }
-      return `## ${topic}\n\nHere is what the NSIL intelligence system has on **${topic}**:\n\n` +
-        `The system has activated its research engines to pull comprehensive data on this topic — cross-referencing geopolitical databases, economic indicators, governance records, and open-source intelligence.\n\n` +
-        `The full AI-powered analysis is loading. If you want a specific angle — political risk, investment feasibility, stakeholder mapping, regulatory landscape, or strategic positioning — I can focus the analysis there.${brainSection}`;
+
+      return `## ${topic}\n\nI'm analysing your query about **${topic}** now. The AI research pipeline is running — this includes web search for current data, root cause analysis, and multi-perspective strategic assessment.\n\n` +
+        `${brainSection ? brainSection + '\n\n' : ''}` +
+        `If you want me to focus on a specific angle — investment feasibility, political risk, regulatory landscape, or market entry — let me know.`;
     }
 
     // ── GENERAL FALLBACK — ANSWER DIRECTLY, never deflect ─────────────────────
@@ -3102,8 +3087,8 @@ ${agentRegistry.current.toManifest()}`;
     // Build a direct, substantive response — NEVER ask for motive or context first
     const locationContext = freshCountry ? ` related to **${freshCountry}**` : '';
     const reply = trimmed.length >= 20
-      ? `I've noted your input${locationContext}. The NSIL intelligence engines are processing this query across all available data sources — governance databases, economic indicators, geopolitical analysis, and open-source intelligence.\n\n` +
-        `The full AI analysis is loading now. The system is cross-referencing your query against its 22-engine brain, live data feeds, and advisory frameworks to deliver a comprehensive response.${brainSection}`
+      ? `I've noted your input${locationContext}. The AI analysis pipeline is processing your query now — running issue classification, root cause analysis, and web research for current data.\n\n` +
+        `The full response will draw from AI reasoning, live World Bank economic data, and web intelligence.${brainSection}`
       : `Understood. What specific topic, country, or situation would you like me to analyse? I can provide intelligence briefings, risk assessments, market analysis, stakeholder mapping, and strategic advisory across any sector or geography worldwide.`;
 
     return reply;
@@ -3279,13 +3264,15 @@ ${agentRegistry.current.toManifest()}`;
         ...(caseStudy.jurisdiction ? { Jurisdiction: caseStudy.jurisdiction } : {}),
       };
 
-      // ── IssueSolutionPipeline — run all 7 analysis engines in parallel ───────
+      // ── IssueSolutionPipeline — run AI analysis engines in parallel ──────────
       //
-      // IMPORTANT: the 7 engines are pure algorithmic (no AI calls) and were
-      // designed for a short issue statement (~200 chars), NOT a 30k-char document.
-      // When the userInput contains uploaded document content, we extract just
-      // the typed query + a condensed document header so the engines get a
-      // focused, meaningful issue to classify — not a keyword soup.
+      // Runs 5 AI-powered analyses in parallel:
+      //  1. AI Issue Classification (category, confidence, reasoning)
+      //  2. AI Root Cause Analysis (deep systemic analysis)
+      //  3. AI 7-Perspective Situation Analysis
+      //  4. AI Web Research (live data, current findings)
+      //  5. AI Debate (for/against arguments + synthesis)
+      // Plus live World Bank economic data for the target country.
       //
       const docSeparatorIdx = userInput.indexOf('\n\n**Uploaded Documents:**');
       const typedQuery = docSeparatorIdx > -1
