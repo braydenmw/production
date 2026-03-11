@@ -1,9 +1,11 @@
 // ============================================================================
 // AGENT MEMORY STORE
 // Persists facts, insights, tool results, and outcomes across the session.
-// Falls back to localStorage for cross-refresh persistence until a vector DB
-// is wired in — at which point only the `store` / `retrieve` API needs updating.
+// Now supports REAL neural embedding retrieval via AIEmbeddingService,
+// with keyword-based fallback.
 // ============================================================================
+
+import { aiEmbeddingService } from '../AIEmbeddingService';
 
 export type MemoryEntryType =
   | 'case_fact'
@@ -92,6 +94,36 @@ export class AgentMemoryStore {
       .sort((a, b) => b.score - a.score)
       .slice(0, limit)
       .map(s => s.entry);
+  }
+
+  /**
+   * Neural embedding retrieval — uses real AI embeddings to find
+   * semantically similar memories. Falls back to keyword search.
+   */
+  async retrieveWithAI(query: string, limit = 8): Promise<MemoryEntry[]> {
+    if (this.entries.length === 0) return [];
+
+    try {
+      const queryEmbedding = await aiEmbeddingService.embedText(query);
+      const entryTexts = this.entries.map(e => e.content);
+      const entryEmbeddings = await aiEmbeddingService.embedBatch(entryTexts);
+
+      const scored = this.entries.map((entry, idx) => {
+        const sim = aiEmbeddingService.cosineSimilarity(queryEmbedding, entryEmbeddings[idx]);
+        const typePriority = entry.metadata.type === 'tool_result' ? 0.1
+          : entry.metadata.type === 'case_fact' ? 0.05 : 0;
+        return { entry, score: sim + typePriority };
+      });
+
+      return scored
+        .filter(s => s.score > 0.3)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, limit)
+        .map(s => s.entry);
+    } catch {
+      // Fallback to keyword search
+      return this.retrieve(query, limit);
+    }
   }
 
   getBySession(sessionId: string): MemoryEntry[] {

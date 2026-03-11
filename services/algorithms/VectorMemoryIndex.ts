@@ -9,6 +9,7 @@
  */
 
 import type { ReportParameters } from '../../types';
+import { aiEmbeddingService } from '../AIEmbeddingService';
 
 // ============================================================================
 // TYPES
@@ -209,7 +210,7 @@ export class VectorMemoryIndex {
   // ============================================================================
 
   /**
-   * Index a report for fast similarity search
+   * Index a report for fast similarity search (sync, uses heuristic embeddings)
    */
   indexReport(params: ReportParameters): void {
     const features = this.extractFeatures(params);
@@ -231,6 +232,69 @@ export class VectorMemoryIndex {
 
     this.embeddings.set(embedding.id, embedding);
     this.lshIndex.insert(embedding.id, vector);
+  }
+
+  /**
+   * Index a report using REAL neural embeddings from AIEmbeddingService.
+   * Falls back to heuristic if embedding fails.
+   */
+  async indexReportWithAI(params: ReportParameters): Promise<void> {
+    const features = this.extractFeatures(params);
+    const text = features.join(' ');
+    let vector: number[];
+
+    try {
+      vector = await aiEmbeddingService.embedText(text);
+    } catch {
+      // Fallback to heuristic
+      vector = this.textToVector(features);
+    }
+
+    const embedding: VectorEmbedding = {
+      id: params.id || `report-${Date.now()}`,
+      vector,
+      metadata: {
+        country: params.country,
+        region: params.region,
+        industry: params.industry,
+        strategicIntent: params.strategicIntent,
+        organizationName: params.organizationName,
+        outcome: (params as any).outcome,
+        timestamp: new Date().toISOString()
+      }
+    };
+
+    this.embeddings.set(embedding.id, embedding);
+    this.lshIndex.insert(embedding.id, vector);
+  }
+
+  /**
+   * Find similar cases using REAL neural embeddings.
+   * Falls back to heuristic if embedding fails.
+   */
+  async findSimilarWithAI(params: ReportParameters, maxResults: number = 5, minScore: number = 0.1): Promise<SimilarityResult[]> {
+    const features = this.extractFeatures(params);
+    const text = features.join(' ');
+    let queryVector: number[];
+
+    try {
+      queryVector = await aiEmbeddingService.embedText(text);
+    } catch {
+      queryVector = this.textToVector(features);
+    }
+
+    // Full scan with cosine similarity (neural embeddings don't need LSH)
+    const results: SimilarityResult[] = [];
+    
+    for (const [id, embedding] of this.embeddings) {
+      if (id === params.id) continue;
+      const score = this.cosineSimilarity(queryVector, embedding.vector);
+      if (score >= minScore) {
+        results.push({ id, score: Math.min(score, 1), embedding, matchReasons: ['neural_similarity'] });
+      }
+    }
+
+    return results.sort((a, b) => b.score - a.score).slice(0, maxResults);
   }
 
   /**

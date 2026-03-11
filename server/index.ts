@@ -37,6 +37,7 @@ import searchRoutes from './routes/search.js';
 import autonomousRoutes from './routes/autonomous.js';
 import governanceRoutes from './routes/governance.js';
 import bedrockRoutes from './routes/bedrock.js';
+import proxyRoutes from './routes/proxy.js';
 
 const app = express();
 const PORT = parseInt(String(process.env.PORT || 3001), 10);
@@ -49,7 +50,7 @@ app.use(helmet({
       scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       imgSrc: ["'self'", "data:", "https:", "blob:"],
-      connectSrc: ["'self'", "https://api.worldbank.org", "https://restcountries.com", "https://nominatim.openstreetmap.org", "https://en.wikipedia.org", "https://google.serper.dev", "https://api.perplexity.ai", "https://generativelanguage.googleapis.com", "https://*.amazonaws.com"],
+      connectSrc: ["'self'", "https://api.worldbank.org", "https://restcountries.com", "https://nominatim.openstreetmap.org", "https://en.wikipedia.org", "https://google.serper.dev", "https://api.perplexity.ai", "https://generativelanguage.googleapis.com", "https://*.amazonaws.com", "https://api.together.xyz"],
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
       frameSrc: ["'none'"],
     },
@@ -132,6 +133,7 @@ app.use('/api/search', searchRoutes);
 app.use('/api/autonomous', autonomousRoutes);
 app.use('/api/governance', governanceRoutes);
 app.use('/api/bedrock', bedrockRoutes);
+app.use('/api/ai/proxy', proxyRoutes);
 
 // Serve static frontend in production
 if (process.env.NODE_ENV === 'production') {

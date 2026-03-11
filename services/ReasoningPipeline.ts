@@ -17,6 +17,8 @@
 import { callTogether } from './togetherAIService';
 import { SYSTEM_INSTRUCTION_SHORT } from './aiPolicy';
 import type { IntelligenceBlock } from './IssueSolutionPipeline';
+import { conversationMemoryManager } from './ConversationMemoryManager';
+import { formatLearningsForPrompt } from './SelfLearningLoop';
 
 export interface ReasoningInput {
   /** Raw user message */
@@ -201,6 +203,17 @@ export async function runReasoningPipeline(
   onThought?: (thought: string) => void
 ): Promise<ReasoningOutput> {
 
+  // ── Inject learning context from past conversations ─────────────────────────
+  let learningBlock = '';
+  try {
+    learningBlock = await formatLearningsForPrompt(input.userMessage);
+  } catch { /* learning retrieval is optional */ }
+
+  // Track this turn in the conversation memory manager
+  try {
+    await conversationMemoryManager.addTurn('user', input.userMessage);
+  } catch { /* memory tracking is optional */ }
+
   // ── Step 1 + 2 + 3: Think ──────────────────────────────────────────────────
   let reasoning: {
     step1_question: string;
@@ -210,10 +223,11 @@ export async function runReasoningPipeline(
   } | null = null;
 
   try {
+    const thinkContent = THINK_PROMPT(input) + (learningBlock ? `\n${learningBlock}` : '');
     const thinkRaw = await callTogether(
       [
         { role: 'system', content: SYSTEM_INSTRUCTION_SHORT },
-        { role: 'user', content: THINK_PROMPT(input) },
+        { role: 'user', content: thinkContent },
       ],
       { model: 'meta-llama/Llama-3.1-70B-Instruct-Turbo', maxTokens: 600, temperature: 0.2 }
     );
@@ -241,16 +255,22 @@ export async function runReasoningPipeline(
   if (reasoning) {
     // Full pipeline: use the thought to ground the answer
     try {
+      const answerContent = ANSWER_PROMPT(input, reasoning) + (learningBlock ? `\n${learningBlock}` : '');
       answer = await callTogether(
         [
           { role: 'system', content: SYSTEM_INSTRUCTION_SHORT },
-          { role: 'user', content: ANSWER_PROMPT(input, reasoning) },
+          { role: 'user', content: answerContent },
         ],
         { model: 'meta-llama/Llama-3.1-70B-Instruct-Turbo', maxTokens: 4096, temperature: 0.35 }
       );
     } catch (err) {
       console.warn('[ReasoningPipeline] Answer step failed:', err);
     }
+  }
+
+  // Track the AI's answer in memory
+  if (answer) {
+    try { await conversationMemoryManager.addTurn('assistant', answer); } catch { /* optional */ }
   }
 
   if (!answer) {
@@ -295,6 +315,17 @@ export async function runReasoningPipelineStream(
   onThought?: (thought: string) => void
 ): Promise<ReasoningOutput> {
 
+  // ── Inject learning context from past conversations ─────────────────────────
+  let learningBlockStream = '';
+  try {
+    learningBlockStream = await formatLearningsForPrompt(input.userMessage);
+  } catch { /* optional */ }
+
+  // Track this turn in memory
+  try {
+    await conversationMemoryManager.addTurn('user', input.userMessage);
+  } catch { /* optional */ }
+
   // ── Think (non-streaming — must complete before answer begins) ─────────────
   let reasoning: {
     step1_question: string;
@@ -304,10 +335,11 @@ export async function runReasoningPipelineStream(
   } | null = null;
 
   try {
+    const thinkContent = THINK_PROMPT(input) + (learningBlockStream ? `\n${learningBlockStream}` : '');
     const thinkRaw = await callTogether(
       [
         { role: 'system', content: SYSTEM_INSTRUCTION_SHORT },
-        { role: 'user', content: THINK_PROMPT(input) },
+        { role: 'user', content: thinkContent },
       ],
       { model: 'meta-llama/Llama-3.1-70B-Instruct-Turbo', maxTokens: 600, temperature: 0.2 }
     );
@@ -326,12 +358,13 @@ export async function runReasoningPipelineStream(
   }
 
   // ── Stream the answer ───────────────────────────────────────────────────────
-  const answerPrompt = ANSWER_PROMPT(input, reasoning ?? {
+  const answerPromptBase = ANSWER_PROMPT(input, reasoning ?? {
     step1_question: 'User needs a direct response.',
     step2_thought: 'Use available context.',
     step3_solution: 'Answer directly and professionally.',
     document_driven: Boolean(input.documentContext),
   });
+  const answerPrompt = answerPromptBase + (learningBlockStream ? `\n${learningBlockStream}` : '');
 
   let accumulated = '';
   let streamFailed = false;
@@ -351,6 +384,11 @@ export async function runReasoningPipelineStream(
   } catch (err) {
     console.warn('[ReasoningPipeline] Stream failed:', err);
     streamFailed = true;
+  }
+
+  // Track the AI's answer in memory
+  if (accumulated) {
+    try { await conversationMemoryManager.addTurn('assistant', accumulated); } catch { /* optional */ }
   }
 
   return {

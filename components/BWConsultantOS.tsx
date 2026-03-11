@@ -66,6 +66,11 @@ import { PartnerIntelligenceEngine, type PartnerCandidate } from '../services/Pa
 import { ReactiveIntelligenceEngine } from '../services/ReactiveIntelligenceEngine';
 import { selfLearningEngine } from '../services/selfLearningEngine';
 import { selfImprovementEngine } from '../services/SelfImprovementEngine';
+import { conversationMemoryManager } from '../services/ConversationMemoryManager';
+import { conversationStore } from '../services/ConversationStore';
+import { learnFromConversation } from '../services/SelfLearningLoop';
+import { webSearch, formatResultsForPrompt } from '../services/WebSearchGateway';
+import { runWithFunctionCalling } from '../services/NativeFunctionCalling';
 
 // ============================================================================
 // TYPES
@@ -3304,21 +3309,41 @@ ${agentRegistry.current.toManifest()}`;
         uploadedDocuments: [],
       }).catch(() => undefined);
 
-      // Build conversation history from prior completed messages so the AI
-      // remembers earlier turns in the session (excluding the current loading stub).
-      const conversationHistory = messages
+      // Build conversation history using the ConversationMemoryManager.
+      // This provides a rolling summary of older turns + recent verbatim turns
+      // instead of the old .slice(-8) with 400-char limits (~3200 chars total).
+      let conversationHistory = messages
         .filter(m => (m.role === 'user' || m.role === 'assistant') && m.content?.trim())
         .slice(-8)
         .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content.slice(0, 400) }));
 
+      // Enhance brainBlock with memory manager context (rolling summary + cross-session learnings)
+      let enhancedContext = context || '';
+      try {
+        const memoryContext = conversationMemoryManager.formatForPrompt();
+        if (memoryContext) {
+          enhancedContext = (enhancedContext ? enhancedContext + '\n\n' : '') + memoryContext;
+        }
+      } catch { /* memory enhancement is optional */ }
+
+      // Inject live web search results if the query seems to need current data
+      const needsSearch = /\b(latest|current|recent|today|2024|2025|news|what is happening|update)\b/i.test(typedQuery || userInput);
+      if (needsSearch) {
+        try {
+          const searchResults = await webSearch(typedQuery || userInput, { maxResults: 4 });
+          if (searchResults.length > 0) {
+            const searchBlock = formatResultsForPrompt(searchResults, 2000);
+            enhancedContext = (enhancedContext ? enhancedContext + '\n\n' : '') + searchBlock;
+          }
+        } catch { /* web search is optional */ }
+      }
+
       const result = await runReasoningPipelineStream(
         {
-          // Use the typed query as the user message so the AI sees a clean prompt,
-          // not 30k document chars embedded in the quoted snippet.
           userMessage: typedQuery || userInput,
           documentContext,
           caseContext: Object.keys(caseContextMap).length ? caseContextMap : undefined,
-          brainBlock: context || undefined,
+          brainBlock: enhancedContext || undefined,
           intelligenceBlock: intelligenceBlock || undefined,
           conversationHistory: conversationHistory.length ? conversationHistory : undefined,
         },
@@ -4967,6 +4992,29 @@ You MUST write each section in full prose, formatted with ## headers, to the spe
     } finally {
       setIsStreamingResponse(false);
       setIsLoading(false);
+
+      // ── PERSIST CONVERSATION & TRIGGER LEARNING ──────────────────────────
+      // Store messages in IndexedDB for cross-session memory and trigger
+      // the self-learning loop to extract corrections/preferences/facts.
+      try {
+        const recentMsgs = messages.slice(-2);
+        for (const m of recentMsgs) {
+          if (m.role === 'user' || m.role === 'assistant') {
+            conversationStore.addMessage(
+              'default',
+              m.role as 'user' | 'assistant',
+              m.content
+            ).catch(() => {/* non-fatal */});
+          }
+        }
+        // Every 10 messages, extract learnings for self-improvement
+        if (messages.length > 0 && messages.length % 10 === 0) {
+          const allMsgs = messages
+            .filter(m => m.role === 'user' || m.role === 'assistant')
+            .map(m => ({ role: m.role, content: m.content }));
+          learnFromConversation('default', allMsgs).catch(() => {/* non-fatal */});
+        }
+      } catch { /* conversation persistence is optional */ }
     }
   }, [
     inputValue,
