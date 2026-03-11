@@ -72,6 +72,11 @@ import { learnFromConversation } from '../services/SelfLearningLoop';
 import { webSearch, formatResultsForPrompt } from '../services/WebSearchGateway';
 import { runWithFunctionCalling } from '../services/NativeFunctionCalling';
 import { quickRegionalIntel } from '../services/RegionalIntelligenceAgent';
+import { outputModerationService } from '../services/OutputModerationService';
+import { piiDetectionService } from '../services/PIIDetectionService';
+import { evaluationFramework } from '../services/EvaluationFramework';
+import { monitoringService } from '../services/MonitoringService';
+import { persistentVectorStore } from '../services/PersistentVectorStore';
 
 // ============================================================================
 // TYPES
@@ -881,6 +886,10 @@ const BWConsultantOS: React.FC<BWConsultantOSProps> = ({ onOpenWorkspace, onNavi
 
     // ── Initialize ConversationMemoryManager — restores cross-session context ────
     conversationMemoryManager.startConversation().catch(() => {/* non-fatal */});
+
+    // ── Initialize PersistentVectorStore — loads persisted embeddings from IndexedDB ──
+    persistentVectorStore.initialize().catch(() => {/* non-fatal */});
+    monitoringService.info('system', 'BWConsultantOS initialized — all safety & evaluation services active');
 
     // ── Subscribe to EventBus — capture intelligence from all background services ──
     const unsubscribeHandlers: Array<() => void> = [];
@@ -4848,6 +4857,35 @@ You MUST write each section in full prose, formatted with ## headers, to the spe
       const _likelyDirectQuestion = /\?|\b(explain|what|why|how|who|can you|could you|should we)\b/i.test(trimmedUserContent);
 
       setExecutionTaskStatus('followup', 'completed', 'Follow-up managed by AI response');
+
+      // ── OUTPUT SAFETY PIPELINE: Moderation → PII Scrubbing → Evaluation ────
+      const moderationResult = outputModerationService.moderate(responseContent);
+      monitoringService.trackModeration(moderationResult.action);
+      if (!moderationResult.passed) {
+        monitoringService.warn('moderation', `Response flagged: ${moderationResult.action}`, {
+          categories: moderationResult.flags.map(f => f.category),
+        });
+      }
+      let safeContent = moderationResult.moderatedText;
+
+      const piiResult = piiDetectionService.scan(safeContent, 'redact');
+      if (piiResult.hasPII) {
+        safeContent = piiResult.scrubbedText;
+        monitoringService.info('pii_detection', `PII redacted: ${piiResult.matches.length} items`, {
+          types: piiResult.matches.map(m => m.type),
+        });
+      }
+      responseContent = safeContent;
+
+      // Background: evaluate response quality (non-blocking)
+      evaluationFramework.evaluate(trimmedUserContent, responseContent, 'heuristic').catch(() => {});
+
+      // Background: store in persistent vector store for RAG retrieval
+      persistentVectorStore.addKnowledge(
+        `Q: ${trimmedUserContent.slice(0, 200)} A: ${responseContent.slice(0, 500)}`,
+        caseStudy.situationType || 'general',
+        0.7
+      ).catch(() => {});
 
       setMessages(prev => prev.map((msg) => (
         msg.id === assistantMessageId ? { ...msg, content: responseContent, phase: inferredPhase } : msg

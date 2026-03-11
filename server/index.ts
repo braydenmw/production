@@ -38,6 +38,7 @@ import autonomousRoutes from './routes/autonomous.js';
 import governanceRoutes from './routes/governance.js';
 import bedrockRoutes from './routes/bedrock.js';
 import proxyRoutes from './routes/proxy.js';
+import memoryRoutes from './routes/memory.js';
 
 const app = express();
 const PORT = parseInt(String(process.env.PORT || 3001), 10);
@@ -134,6 +135,7 @@ app.use('/api/autonomous', autonomousRoutes);
 app.use('/api/governance', governanceRoutes);
 app.use('/api/bedrock', bedrockRoutes);
 app.use('/api/ai/proxy', proxyRoutes);
+app.use('/api/memory', memoryRoutes);
 
 // Serve static frontend in production
 if (process.env.NODE_ENV === 'production') {

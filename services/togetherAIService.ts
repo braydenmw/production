@@ -22,6 +22,7 @@ export const TOGETHER_VISION_MODEL  = 'meta-llama/Llama-3.2-11B-Vision-Instruct-
 
 // Imported locally so it can be used as a default parameter in this file
 import { SYSTEM_INSTRUCTION } from './aiPolicy';
+import { monitoringService } from './MonitoringService';
 export const TOGETHER_SYSTEM_PROMPT = SYSTEM_INSTRUCTION;
 
 // ─── Client ───────────────────────────────────────────────────────────────────
@@ -66,31 +67,64 @@ export async function callTogether(
     );
   }
 
+  const modelUsed = options.model ?? TOGETHER_DEFAULT_MODEL;
+  const callStart = performance.now();
+
   const body = JSON.stringify({
-    model:       options.model       ?? TOGETHER_DEFAULT_MODEL,
+    model:       modelUsed,
     messages,
     max_tokens:  options.maxTokens   ?? 4096,
     temperature: options.temperature ?? 0.4,
     stream:      Boolean(onToken),
   });
 
-  const res = await fetch(TOGETHER_API_URL, {
-    method:  'POST',
-    headers: {
-      'Authorization': `Bearer ${key}`,
-      'Content-Type':  'application/json',
-    },
-    body,
-  });
+  let res: Response;
+  try {
+    res = await fetch(TOGETHER_API_URL, {
+      method:  'POST',
+      headers: {
+        'Authorization': `Bearer ${key}`,
+        'Content-Type':  'application/json',
+      },
+      body,
+    });
+  } catch (err) {
+    monitoringService.trackAICall({
+      timestamp: new Date().toISOString(),
+      model: modelUsed,
+      provider: 'together',
+      latencyMs: Math.round(performance.now() - callStart),
+      success: false,
+      error: err instanceof Error ? err.message : 'Network error',
+    });
+    throw err;
+  }
 
   if (!res.ok) {
     const errText = await res.text().catch(() => '');
+    monitoringService.trackAICall({
+      timestamp: new Date().toISOString(),
+      model: modelUsed,
+      provider: 'together',
+      latencyMs: Math.round(performance.now() - callStart),
+      success: false,
+      error: `${res.status}: ${errText.slice(0, 200)}`,
+    });
     throw new Error(`Together.ai ${res.status}: ${errText}`);
   }
 
   // ── Non-streaming ──
   if (!onToken) {
     const data = await res.json();
+    monitoringService.trackAICall({
+      timestamp: new Date().toISOString(),
+      model: modelUsed,
+      provider: 'together',
+      latencyMs: Math.round(performance.now() - callStart),
+      success: true,
+      inputTokens: data.usage?.prompt_tokens,
+      outputTokens: data.usage?.completion_tokens,
+    });
     return data.choices?.[0]?.message?.content || '';
   }
 
@@ -116,6 +150,13 @@ export async function callTogether(
       } catch { /* partial chunk */ }
     }
   }
+  monitoringService.trackAICall({
+    timestamp: new Date().toISOString(),
+    model: modelUsed,
+    provider: 'together',
+    latencyMs: Math.round(performance.now() - callStart),
+    success: true,
+  });
   return full;
 }
 
