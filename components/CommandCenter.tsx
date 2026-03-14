@@ -479,45 +479,47 @@ const CommandCenter: React.FC<CommandCenterProps> = ({ onEnterPlatform, onOpenGl
 
                     <div className="grid md:grid-cols-2 gap-6 mb-10">
                         {/* ── LEFT: Every Other AI ── */}
-                        <div className="relative rounded-md overflow-hidden border border-red-200 shadow-sm">
-                            <img src="https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?w=800&h=340&fit=crop&auto=format&q=80" alt="" className="w-full h-44 object-cover" loading="lazy" />
-                            <div className="absolute top-0 left-0 right-0 h-44 bg-gradient-to-b from-red-900/60 to-red-900/30 flex items-end p-4">
-                                <span className="text-white font-bold text-lg drop-shadow">Every Other AI</span>
+                        <div className="relative rounded-md overflow-hidden border border-red-200/60 shadow-md">
+                            <img src="https://images.unsplash.com/photo-1504639725590-34d0984388bd?w=800&h=400&fit=crop&auto=format&q=80" alt="" className="w-full h-52 object-cover" loading="lazy" />
+                            <div className="absolute top-0 left-0 right-0 h-52 bg-gradient-to-b from-slate-900/70 via-slate-900/40 to-red-900/50 flex flex-col justify-end p-5">
+                                <p className="text-[10px] font-bold text-red-300 uppercase tracking-widest mb-1">The problem</p>
+                                <span className="text-white font-bold text-xl drop-shadow">Every Other AI</span>
                             </div>
-                            <div className="p-5 bg-red-50/30 space-y-2">
+                            <div className="p-5 bg-red-50/20 space-y-3">
                                 {[
-                                    'Blank prompt box \u2014 no identity, no intake, no memory',
-                                    'Training-data guesses \u2014 cannot check a real registry',
-                                    'Biased toward well-known markets \u2014 stereotypes the rest',
-                                    'One model, one pass \u2014 no adversarial check on its own output',
-                                    'No source accountability \u2014 confident fiction fills the gaps',
-                                ].map((pt, i) => (
-                                    <div key={i} className="flex items-start gap-2 text-sm text-slate-700">
-                                        <span className="mt-0.5 w-4 h-4 rounded-full bg-red-100 text-red-600 flex items-center justify-center flex-shrink-0 text-[10px] font-bold">&times;</span>
-                                        {pt}
+                                    ['No identity', 'Doesn\u2019t ask who you are, what firm you represent, or what you\u2019re trying to achieve. Everyone gets the same blank prompt box.'],
+                                    ['No verification', 'Cannot check a corporate registry, screen sanctions, or verify an LEI. Gives fluent, confident answers fabricated from training data.'],
+                                    ['Regional bias', 'Trained on 100\u00d7 more content about New York than Suva. Lesser-known markets get the nearest Western comparison, not their own reality.'],
+                                    ['No second opinion', 'One model, one pass, no adversarial check. No engine asks \u201Cwhat if the opposite is true?\u201D before the answer reaches you.'],
+                                    ['No source trail', 'When it doesn\u2019t have data it fills the gap with confident fiction. You can\u2019t trace a single claim back to a named source.'],
+                                ].map(([title, desc], i) => (
+                                    <div key={i} className="flex items-start gap-3">
+                                        <span className="mt-1 w-5 h-5 rounded-full bg-red-100 text-red-500 flex items-center justify-center flex-shrink-0 text-xs font-bold">&times;</span>
+                                        <div><span className="font-semibold text-slate-900 text-sm">{title}.</span> <span className="text-sm text-slate-600">{desc}</span></div>
                                     </div>
                                 ))}
                             </div>
                         </div>
 
                         {/* ── RIGHT: This System ── */}
-                        <div className="relative rounded-md overflow-hidden border border-blue-200 shadow-sm">
-                            <img src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&h=340&fit=crop&auto=format&q=80" alt="" className="w-full h-44 object-cover" loading="lazy" />
-                            <div className="absolute top-0 left-0 right-0 h-44 bg-gradient-to-b from-blue-900/60 to-blue-900/30 flex items-end p-4">
-                                <span className="text-white font-bold text-lg drop-shadow">This System</span>
+                        <div className="relative rounded-md overflow-hidden border border-blue-200/60 shadow-md">
+                            <img src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&h=400&fit=crop&auto=format&q=80" alt="" className="w-full h-52 object-cover" loading="lazy" />
+                            <div className="absolute top-0 left-0 right-0 h-52 bg-gradient-to-b from-slate-900/70 via-slate-900/40 to-blue-900/50 flex flex-col justify-end p-5">
+                                <p className="text-[10px] font-bold text-blue-300 uppercase tracking-widest mb-1">The solution</p>
+                                <span className="text-white font-bold text-xl drop-shadow">This System</span>
                             </div>
-                            <div className="p-5 bg-blue-50/30 space-y-2">
+                            <div className="p-5 bg-blue-50/20 space-y-3">
                                 {[
-                                    'Structured intake \u2014 learns your role, firm, purpose, and experience first',
-                                    'Real registry lookups \u2014 sanctions, corporate, LEI, governance, live news',
-                                    'Identical formula for every country \u2014 methodology doesn\u2019t discriminate',
-                                    '19 engines challenge every assessment \u2014 deterministic, auditable, defensible',
-                                    'Every claim sourced \u2014 tells you what it verified and what it couldn\u2019t',
-                                    'Scans live global disruptions for regional arbitrage opportunities',
-                                ].map((pt, i) => (
-                                    <div key={i} className="flex items-start gap-2 text-sm text-slate-700">
-                                        <span className="mt-0.5 w-4 h-4 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center flex-shrink-0 text-[10px] font-bold">&#10003;</span>
-                                        {pt}
+                                    ['Knows who you are', 'Structured intake captures your role, firm, sector, purpose, and experience level before any analysis begins. Context shapes everything.'],
+                                    ['Verifies against real registries', 'Sanctions databases, corporate registries, LEI lookups, governance scores, independent web search, and live news \u2014 real lookups, every time.'],
+                                    ['Same formula, every country', 'The identical weighted scoring model runs for Papua New Guinea and the United States. The methodology doesn\u2019t discriminate.'],
+                                    ['19 engines challenge every answer', 'Adversarial debate, counterfactual simulation, blind-spot detection, sanctions screening, and entity intelligence \u2014 deterministic and auditable.'],
+                                    ['Every claim sourced', 'Tells you what it verified, what it couldn\u2019t, and which data source each finding came from. When it lacks data, it says so.'],
+                                    ['Spots disruption opportunities', 'Scans live global events \u2014 wars, sanctions, trade fractures \u2014 and identifies where regional markets can capture displaced demand.'],
+                                ].map(([title, desc], i) => (
+                                    <div key={i} className="flex items-start gap-3">
+                                        <span className="mt-1 w-5 h-5 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center flex-shrink-0 text-xs font-bold">&#10003;</span>
+                                        <div><span className="font-semibold text-slate-900 text-sm">{title}.</span> <span className="text-sm text-slate-600">{desc}</span></div>
                                     </div>
                                 ))}
                             </div>
