@@ -454,13 +454,16 @@ const CommandCenter: React.FC<CommandCenterProps> = ({ onEnterPlatform, onOpenGl
                     </p>
                     <div id="brain" className="relative -top-28" />
 
-                    {/* ── The Gap: What Advisory AI Actually Lacks ── */}
+                    {/* ── The Gap: What Advisory AI Currently Lacks ── */}
                     <h2 className="text-3xl md:text-4xl font-bold text-slate-900 leading-tight mb-6">
-                        What Every AI Advisory System Gets Wrong
+                        What Every AI Advisory System Currently Lacks
                     </h2>
                     <div className="space-y-4 mb-10">
                         <p className="text-lg text-slate-700 leading-relaxed text-justify">
-                            The single biggest gap across every general-purpose AI when it comes to strategic advisory work is this: <strong className="text-slate-900">they don&rsquo;t know who they&rsquo;re talking to, and they don&rsquo;t verify what they&rsquo;re talking about.</strong>
+                            The single biggest gap across ChatGPT, Gemini, Claude, Perplexity, and every other general-purpose AI when it comes to strategic advisory work is this: <strong className="text-slate-900">they don&rsquo;t know who they&rsquo;re talking to, and they don&rsquo;t verify what they&rsquo;re talking about.</strong>
+                        </p>
+                        <p className="text-base text-slate-600 leading-relaxed text-justify">
+                            Here&rsquo;s what that means in practice:
                         </p>
                     </div>
 
@@ -473,7 +476,7 @@ const CommandCenter: React.FC<CommandCenterProps> = ({ onEnterPlatform, onOpenGl
                                 <h3 className="text-base font-bold text-slate-900">No Identity, No Context, No Continuity</h3>
                             </div>
                             <p className={`text-sm text-slate-700 leading-relaxed text-justify${expandedCards.has('p1') ? '' : ' line-clamp-3'}`}>
-                                Standard AI doesn&rsquo;t ask who you are. It doesn&rsquo;t know if you&rsquo;re a first-time founder exploring Papua New Guinea or a seasoned infrastructure investor evaluating a $200M port deal in Mozambique. It treats both identically &mdash; a blank prompt box. There&rsquo;s no intake, no case building, no memory of your situation across turns. Every conversation starts at zero.
+                                ChatGPT doesn&rsquo;t ask who you are. It doesn&rsquo;t know if you&rsquo;re a first-time founder exploring Papua New Guinea or a seasoned infrastructure investor evaluating a $200M port deal in Mozambique. It treats both identically &mdash; a blank prompt box. There&rsquo;s no intake, no case building, no memory of your situation across turns or sessions. Every conversation starts at zero. This system does the opposite: it establishes who you are, what firm you represent, what you&rsquo;re trying to achieve, and whether you&rsquo;re a novice exploring or a professional executing. That context shapes everything &mdash; the depth of analysis, the language used, the risks surfaced, the follow-up questions asked.
                             </p>
                             <button onClick={() => toggleCard('p1')} className="text-blue-600 hover:text-blue-800 text-xs font-semibold mt-2 transition-colors">
                                 {expandedCards.has('p1') ? 'Show less' : 'Read more \u2192'}
@@ -487,7 +490,7 @@ const CommandCenter: React.FC<CommandCenterProps> = ({ onEnterPlatform, onOpenGl
                                 <h3 className="text-base font-bold text-slate-900">No Entity Verification &mdash; Just Confident Guessing</h3>
                             </div>
                             <p className={`text-sm text-slate-700 leading-relaxed text-justify${expandedCards.has('p2') ? '' : ' line-clamp-3'}`}>
-                                Ask a standard AI &ldquo;Is Sunrise Holdings Ltd in Fiji a legitimate company?&rdquo; and it will give you a fluent, confident answer &mdash; entirely fabricated from statistical patterns. It cannot check a corporate registry. It cannot screen against sanctions lists. It cannot verify a Legal Entity Identifier. It <em>sounds</em> authoritative. It is not. In advisory work &mdash; where someone might commit capital or brief a minister based on what an AI tells them &mdash; that&rsquo;s dangerous.
+                                Ask ChatGPT &ldquo;Is Sunrise Holdings Ltd in Fiji a legitimate company?&rdquo; and it will give you a fluent, confident answer &mdash; entirely fabricated from statistical patterns in its training data. It cannot check a corporate registry. It cannot screen against sanctions lists. It cannot verify an LEI number. It cannot pull real governance scores for Fiji vs. Australia and compare them objectively. It <em>sounds</em> authoritative. It is not. And in advisory work &mdash; where someone might commit capital, sign an MOU, or brief a minister based on what an AI tells them &mdash; that&rsquo;s dangerous.
                             </p>
                             <button onClick={() => toggleCard('p2')} className="text-blue-600 hover:text-blue-800 text-xs font-semibold mt-2 transition-colors">
                                 {expandedCards.has('p2') ? 'Show less' : 'Read more \u2192'}
@@ -501,7 +504,7 @@ const CommandCenter: React.FC<CommandCenterProps> = ({ onEnterPlatform, onOpenGl
                                 <h3 className="text-base font-bold text-slate-900">The Bias Problem Nobody Talks About</h3>
                             </div>
                             <p className={`text-sm text-slate-700 leading-relaxed text-justify${expandedCards.has('p3') ? '' : ' line-clamp-3'}`}>
-                                Every large language model is trained on internet text. The internet has orders of magnitude more content about New York, London, and Singapore than about Suva, Port Moresby, Lusaka, or Tbilisi. When you ask a general AI to evaluate a lesser-known market, it defaults to the nearest well-known comparison, surfaces mainly negative framing, or pads the answer with generic GDP statistics. <strong className="text-slate-900">Well-known places get the benefit of the doubt. Unknown places get the benefit of the stereotype.</strong> That&rsquo;s not advisory &mdash; that&rsquo;s pattern-matching dressed up as analysis.
+                                This is the deepest issue. Every large language model is trained on internet text. The internet has orders of magnitude more content about New York, London, and Singapore than about Suva, Port Moresby, Lusaka, or Tbilisi. When you ask a general AI to evaluate a lesser-known market, it defaults to the nearest well-known comparison &mdash; erasing the actual characteristics of the place. It surfaces mainly negative framing, because limited training data for smaller markets skews toward news coverage of problems, not opportunities. It pads answers with generic country-level GDP statistics instead of verifiable intelligence. <strong className="text-slate-900">Well-known places get the benefit of the doubt. Unknown places get the benefit of the stereotype.</strong> That&rsquo;s not advisory &mdash; that&rsquo;s pattern-matching dressed up as analysis.
                             </p>
                             <button onClick={() => toggleCard('p3')} className="text-blue-600 hover:text-blue-800 text-xs font-semibold mt-2 transition-colors">
                                 {expandedCards.has('p3') ? 'Show less' : 'Read more \u2192'}
@@ -515,7 +518,7 @@ const CommandCenter: React.FC<CommandCenterProps> = ({ onEnterPlatform, onOpenGl
                                 <h3 className="text-base font-bold text-slate-900">No Adversarial Check on Its Own Output</h3>
                             </div>
                             <p className={`text-sm text-slate-700 leading-relaxed text-justify${expandedCards.has('p4') ? '' : ' line-clamp-3'}`}>
-                                When a standard AI gives you an answer, there is no second engine challenging it. No counterfactual analysis asking &ldquo;what if the opposite is true?&rdquo; No unbiased scoring engine running the same formula for Fiji that it runs for Singapore. No Monte Carlo simulation stress-testing the probability of loss. It&rsquo;s one model, one pass, one perspective.
+                                When ChatGPT gives you an answer, there is no second engine challenging it. No counterfactual analysis asking &ldquo;what if the opposite is true?&rdquo; No scoring engine running the same formula for Fiji that it runs for Singapore. No simulation stress-testing the probability of loss. It&rsquo;s one model, one pass, one perspective. In a world where a decision might affect a community, an investment, or a government strategy &mdash; one perspective isn&rsquo;t enough.
                             </p>
                             <button onClick={() => toggleCard('p4')} className="text-blue-600 hover:text-blue-800 text-xs font-semibold mt-2 transition-colors">
                                 {expandedCards.has('p4') ? 'Show less' : 'Read more \u2192'}
@@ -523,13 +526,13 @@ const CommandCenter: React.FC<CommandCenterProps> = ({ onEnterPlatform, onOpenGl
                         </div>
                     </div>
 
-                    {/* ── The BW Consultant: How This System Is Different ── */}
+                    {/* ── Is This System Actually Different? ── */}
                     <h2 className="text-3xl md:text-4xl font-bold text-slate-900 leading-tight mb-6">
-                        How This System Is Architecturally Different
+                        Is This System Actually Different?
                     </h2>
                     <div className="space-y-4 mb-10">
                         <p className="text-lg text-slate-700 leading-relaxed text-justify">
-                            The <strong className="text-slate-900">BW Consultant</strong> is the front door to BWGA Ai. You have a conversation with it &mdash; describe what you&rsquo;re dealing with, what you&rsquo;re trying to achieve, where you&rsquo;re operating. But before it advises, it establishes <em>who it&rsquo;s speaking to</em>.
+                            Yes &mdash; architecturally, not just cosmetically. The <strong className="text-slate-900">BW Consultant</strong> is the front door. You have a conversation with it &mdash; describe what you&rsquo;re dealing with, what you&rsquo;re trying to achieve, where you&rsquo;re operating. But before it advises, it establishes <em>who it&rsquo;s speaking to</em>.
                         </p>
                     </div>
 
@@ -552,18 +555,19 @@ const CommandCenter: React.FC<CommandCenterProps> = ({ onEnterPlatform, onOpenGl
                             ))}
                         </div>
                         <p className="text-sm text-slate-600 leading-relaxed text-justify">
-                            A novice gets more educational framing and broader exploration. A professional gets deeper entity-level intelligence and risk quantification immediately. Both get the same unbiased data &mdash; but the <em>presentation</em> adapts to the person. That&rsquo;s the difference between a search engine with a chat interface and an actual advisory system.
+                            A novice gets more educational framing and broader exploration. A professional gets deeper entity-level intelligence and risk quantification immediately. Both get the same unbiased data &mdash; but the <em>presentation</em> adapts to the person. That conversational intake &mdash; knowing <em>who</em> before advising <em>what</em> &mdash; is something no general AI does today. And it&rsquo;s the difference between a search engine with a chat interface and an actual advisory system.
                         </p>
                     </div>
 
-                    {/* Six Solution Points - Matching Against the Four Problems */}
+                    {/* What this system does that others don't */}
+                    <h3 className="text-xl font-bold text-slate-900 mb-6">What this system does that others don&rsquo;t:</h3>
                     <div className="grid md:grid-cols-2 gap-6 mb-10">
                         <div className="bg-white border border-blue-200 p-5 shadow-sm">
                             <div className="flex items-center gap-2 mb-2">
                                 <CheckCircle2 size={18} className="text-blue-600 flex-shrink-0" />
                                 <h4 className="text-sm font-bold text-slate-900">Entity Verification Pipeline</h4>
                             </div>
-                            <p className={`text-sm text-slate-600 leading-relaxed${expandedCards.has('s1') ? '' : ' line-clamp-2'}`}>When someone mentions a company, partner, or jurisdiction, the system queries <strong>real registries</strong> &mdash; OpenSanctions screening, OpenCorporates corporate registry, GLEIF Legal Entity Identifiers, V-Dem governance data, Brave independent web search, GDELT news monitoring, and Tavily deep research. It tells you what it verified and what it couldn&rsquo;t.</p>
+                            <p className={`text-sm text-slate-600 leading-relaxed${expandedCards.has('s1') ? '' : ' line-clamp-3'}`}>When someone mentions a company, a partner, or a jurisdiction, this system queries <strong>real registries</strong> &mdash; sanctions databases, corporate registries, legal entity identifiers, academic governance data, independent web search, and live news monitoring. It tells you what it verified and what it couldn&rsquo;t. Not training-data guesses &mdash; real lookups, every time.</p>
                             <button onClick={() => toggleCard('s1')} className="text-blue-600 hover:text-blue-800 text-xs font-semibold mt-2 transition-colors">
                                 {expandedCards.has('s1') ? 'Show less' : 'Read more \u2192'}
                             </button>
@@ -573,7 +577,7 @@ const CommandCenter: React.FC<CommandCenterProps> = ({ onEnterPlatform, onOpenGl
                                 <Scale size={18} className="text-blue-600 flex-shrink-0" />
                                 <h4 className="text-sm font-bold text-slate-900">Identical Formula, Every Country</h4>
                             </div>
-                            <p className="text-sm text-slate-600 leading-relaxed">The CompositeScoreService runs the same weighted scoring model for Papua New Guinea that it runs for the United States. The data inputs differ (because reality differs), but the <strong>methodology doesn&rsquo;t discriminate</strong>. Regional unknowns are evaluated on true merit using V-Dem academic governance scores, not internet popularity.</p>
+                            <p className="text-sm text-slate-600 leading-relaxed">The same weighted scoring model runs for Papua New Guinea that runs for the United States. The data inputs differ &mdash; because reality differs &mdash; but the <strong>methodology doesn&rsquo;t discriminate</strong>. Regional unknowns are evaluated on true merit, not internet popularity.</p>
                         </div>
                         <div className="bg-white border border-blue-200 p-5 shadow-sm">
                             <div className="flex items-center gap-2 mb-2">
@@ -594,7 +598,7 @@ const CommandCenter: React.FC<CommandCenterProps> = ({ onEnterPlatform, onOpenGl
                                 <FileCheck size={18} className="text-blue-600 flex-shrink-0" />
                                 <h4 className="text-sm font-bold text-slate-900">Source Accountability</h4>
                             </div>
-                            <p className={`text-sm text-slate-600 leading-relaxed${expandedCards.has('s5') ? '' : ' line-clamp-2'}`}>When the system makes a claim about an entity, it tells you <strong>which data source</strong> that claim came from &mdash; GLEIF LEI record, OpenSanctions clearance, V-Dem governance band, corporate registry match. When it doesn&rsquo;t have data, it says so &mdash; instead of filling the gap with confident fiction.</p>
+                            <p className={`text-sm text-slate-600 leading-relaxed${expandedCards.has('s5') ? '' : ' line-clamp-3'}`}>When the system makes a claim about an entity, it tells you <strong>which data source</strong> that claim came from. When it doesn&rsquo;t have data, it says so &mdash; instead of filling the gap with confident fiction. Every significant finding traces back to a named source.</p>
                             <button onClick={() => toggleCard('s5')} className="text-blue-600 hover:text-blue-800 text-xs font-semibold mt-2 transition-colors">
                                 {expandedCards.has('s5') ? 'Show less' : 'Read more \u2192'}
                             </button>
@@ -604,13 +608,30 @@ const CommandCenter: React.FC<CommandCenterProps> = ({ onEnterPlatform, onOpenGl
                                 <TrendingUp size={18} className="text-blue-600 flex-shrink-0" />
                                 <h4 className="text-sm font-bold text-slate-900">Deterministic &bull; Auditable &bull; Defensible</h4>
                             </div>
-                            <p className="text-sm text-slate-600 leading-relaxed">46+ proprietary formulas produce calculated scores with traceable inputs. Every output comes with a method trail. Run it again tomorrow with the same inputs and you get the same answer. That is the standard required for committee-ready, board-defensible strategic outputs.</p>
+                            <p className="text-sm text-slate-600 leading-relaxed">Run it again tomorrow with the same inputs and you get the same answer. Every output comes with a method trail. That is the standard required for committee-ready, board-defensible strategic outputs.</p>
                         </div>
                     </div>
 
+                    {/* ── Global Disruption → Regional Opportunity ── */}
+                    <div className="bg-gradient-to-r from-slate-50 to-blue-50 border border-slate-200 rounded-sm p-6 mb-10">
+                        <h3 className="text-xl font-bold text-slate-900 mb-4">Where World Events Create Regional Opportunity</h3>
+                        <p className="text-sm text-slate-700 leading-relaxed text-justify mb-4">
+                            There is more than ever a need for open-mindedness to places once never thought of. When a crisis hurts a dominant market, somewhere else in the world has the conditions to absorb that displaced demand, talent, capital, or supply-chain link &mdash; <strong className="text-slate-900">if someone spots it first</strong>.
+                        </p>
+                        <p className={`text-sm text-slate-700 leading-relaxed text-justify${expandedCards.has('geo') ? '' : ' line-clamp-3'}`}>
+                            This system scans live global news for active disruptions &mdash; wars, sanctions, trade fractures, supply-chain breaks, currency crises, energy shocks &mdash; and identifies where those disruptions create structural openings for regional cities, small islands, and lesser-known jurisdictions. Vietnam replaced China in textiles when tariffs hit in 2018. Dubai absorbed displaced Gulf War capital in 1991. Georgia&rsquo;s tech sector boomed when Russian IT workers relocated in 2022. Bangladesh captured garment orders diverted from China. Barbados launched a Digital Nomad Visa and attracted remote workers during the pandemic. These patterns repeat &mdash; and this system spots them proactively, before the user even thinks to ask. When someone asks about Mindanao, the system doesn&rsquo;t just evaluate the region in isolation &mdash; it sees the South China Sea tensions, the Red Sea shipping disruptions, and scores Mindanao&rsquo;s ports as a supply-chain arbitrage opportunity. It challenges the current perception and makes you think beyond what is in front of you &mdash; but safely, with historical precedent and real intelligence behind every suggestion.
+                        </p>
+                        <button onClick={() => toggleCard('geo')} className="text-blue-600 hover:text-blue-800 text-xs font-semibold mt-2 transition-colors">
+                            {expandedCards.has('geo') ? 'Show less' : 'Read more \u2192'}
+                        </button>
+                    </div>
+
                     <div className="text-center">
-                        <p className="text-base text-slate-600 italic max-w-2xl mx-auto">
-                            General AI systems are <strong className="text-slate-900">answer machines</strong> &mdash; they optimise for giving you a fluent response. This system is a <strong className="text-slate-900">case-building advisor</strong> &mdash; it optimises for giving you a verified, unbiased, contextual assessment you could actually act on.
+                        <p className="text-base text-slate-600 italic max-w-2xl mx-auto mb-3">
+                            General AI systems are <strong className="text-slate-900">answer machines</strong> &mdash; they optimise for giving you a fluent response to whatever you type. This system is a <strong className="text-slate-900">case-building advisor</strong> &mdash; it optimises for giving you a verified, unbiased, contextual assessment you could actually act on.
+                        </p>
+                        <p className="text-sm text-slate-500 max-w-xl mx-auto">
+                            The fundamental difference: other AI gives you words. This system gives you a position you can defend.
                         </p>
                     </div>
                 </div>
