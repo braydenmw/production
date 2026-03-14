@@ -454,142 +454,58 @@ const CommandCenter: React.FC<CommandCenterProps> = ({ onEnterPlatform, onOpenGl
                     </p>
                     <div id="brain" className="relative -top-28" />
 
-                    {/* ── The Gap — and How This System Closes It ── */}
+                    {/* ── What Every AI Lacks vs What This System Does ── */}
                     <h2 className="text-3xl md:text-4xl font-bold text-slate-900 leading-tight mb-3">
-                        The Gap &mdash; and How This System Closes It
+                        What Every AI Advisory System Currently Lacks
                     </h2>
-                    <p className="text-base text-slate-600 mb-8">
-                        Every general-purpose AI &mdash; the household names, the billion-dollar chatbots &mdash; shares the same structural gaps when it comes to real advisory work. Below is what&rsquo;s missing, and what this system does instead.
+                    <p className="text-base text-slate-600 mb-8 leading-relaxed">
+                        The single biggest gap across every general-purpose AI &mdash; the household names, the billion-dollar chatbots, the search engines that bolted on a conversation layer &mdash; when it comes to strategic advisory work is this: <strong className="text-slate-900">they don&rsquo;t know who they&rsquo;re talking to, and they don&rsquo;t verify what they&rsquo;re talking about.</strong>
                     </p>
 
-                    {/* ── Pair 1: No Identity → Structured Intake ── */}
-                    <div className="border border-slate-200 rounded-sm overflow-hidden mb-5 shadow-sm">
-                        <div className="grid md:grid-cols-2">
-                            <div className="p-5 bg-red-50/40 border-b md:border-b-0 md:border-r border-slate-200">
-                                <span className="inline-block px-2 py-0.5 bg-red-100 text-red-700 text-[10px] font-bold uppercase tracking-wider rounded mb-3">The Gap</span>
-                                <h3 className="text-base font-bold text-slate-900 mb-2">No Identity, No Context, No Continuity</h3>
-                                <p className={`text-sm text-slate-700 leading-relaxed${expandedCards.has('p1') ? '' : ' line-clamp-3'}`}>
-                                    The most popular AI in the world doesn&rsquo;t ask who you are. First-time founder or seasoned investor &mdash; both get a blank prompt box. No intake, no case building, no memory across sessions. Every conversation starts at zero.
-                                </p>
-                                <button onClick={() => toggleCard('p1')} className="text-red-600 hover:text-red-800 text-xs font-semibold mt-1.5 transition-colors">
-                                    {expandedCards.has('p1') ? 'Show less' : 'Read more \u2192'}
-                                </button>
+                    <div className="grid md:grid-cols-2 gap-6 mb-10">
+                        {/* ── LEFT: Every Other AI ── */}
+                        <div className="relative rounded-md overflow-hidden border border-red-200 shadow-sm">
+                            <img src="https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?w=800&h=340&fit=crop&auto=format&q=80" alt="" className="w-full h-44 object-cover" loading="lazy" />
+                            <div className="absolute top-0 left-0 right-0 h-44 bg-gradient-to-b from-red-900/60 to-red-900/30 flex items-end p-4">
+                                <span className="text-white font-bold text-lg drop-shadow">Every Other AI</span>
                             </div>
-                            <div className="p-5 bg-blue-50/40 relative overflow-hidden">
-                                <div className="absolute right-0 top-0 bottom-0 w-20 hidden md:block">
-                                    <img src="https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?w=200&h=500&fit=crop&auto=format&q=80" alt="" className="w-full h-full object-cover" loading="lazy" />
-                                    <div className="absolute inset-0 bg-gradient-to-l from-transparent to-blue-50/70" />
-                                </div>
-                                <div className="relative">
-                                    <span className="inline-block px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold uppercase tracking-wider rounded mb-3">This System</span>
-                                    <h3 className="text-base font-bold text-slate-900 mb-2">Structured Intake &mdash; It Learns You First</h3>
-                                    <div className="flex flex-wrap gap-2 mb-3">
-                                        {['Who you are', 'Your firm', 'Your purpose', 'What you need', 'Experience level'].map((step, i) => (
-                                            <span key={i} className="inline-flex items-center gap-1.5 text-[11px] bg-white border border-blue-200 rounded-full px-2.5 py-1 text-slate-700">
-                                                <span className="w-4 h-4 rounded-full bg-blue-600 text-white text-[9px] font-bold flex items-center justify-center flex-shrink-0">{i + 1}</span>
-                                                {step}
-                                            </span>
-                                        ))}
-                                    </div>
-                                    <p className="text-sm text-slate-600 leading-relaxed">A novice gets broader exploration. A professional gets entity-level intelligence immediately. Both get the same unbiased data &mdash; the <em>presentation</em> adapts. That&rsquo;s the difference between a chat interface and an advisory system.</p>
-                                </div>
+                            <div className="p-5 bg-red-50/30">
+                                <p className="text-sm text-slate-700 leading-relaxed mb-3">
+                                    They don&rsquo;t ask who you are. First-time founder or $200M infrastructure investor &mdash; both get the same blank prompt box. No intake, no case memory, no continuity. Every conversation starts at zero.
+                                </p>
+                                <p className="text-sm text-slate-700 leading-relaxed mb-3">
+                                    Ask one &ldquo;Is Sunrise Holdings Ltd in Fiji legitimate?&rdquo; and you&rsquo;ll get a fluent, confident answer &mdash; fabricated from statistical patterns. It cannot check a corporate registry, screen a sanctions list, or verify an LEI number. It <em>sounds</em> authoritative. It is not.
+                                </p>
+                                <p className="text-sm text-slate-700 leading-relaxed mb-3">
+                                    The internet has orders of magnitude more content about New York and Singapore than about Suva, Lusaka, or Tbilisi. Lesser-known markets get mapped to the nearest well-known comparison &mdash; erasing who they actually are. <strong className="text-slate-900">Well-known places get the benefit of the doubt. Unknown places get the benefit of the stereotype.</strong>
+                                </p>
+                                <p className="text-sm text-slate-700 leading-relaxed">
+                                    And there is no second engine challenging the output. No counterfactual, no adversarial check, no scoring formula that treats Fiji and Singapore identically. One model, one pass, one perspective &mdash; for decisions that might affect a community, an investment, or a government strategy.
+                                </p>
                             </div>
                         </div>
-                    </div>
 
-                    {/* ── Pair 2: No Verification → Entity Pipeline + Source Accountability ── */}
-                    <div className="border border-slate-200 rounded-sm overflow-hidden mb-5 shadow-sm">
-                        <div className="grid md:grid-cols-2">
-                            <div className="p-5 bg-red-50/40 border-b md:border-b-0 md:border-r border-slate-200">
-                                <span className="inline-block px-2 py-0.5 bg-red-100 text-red-700 text-[10px] font-bold uppercase tracking-wider rounded mb-3">The Gap</span>
-                                <h3 className="text-base font-bold text-slate-900 mb-2">No Entity Verification &mdash; Just Confident Guessing</h3>
-                                <p className={`text-sm text-slate-700 leading-relaxed${expandedCards.has('p2') ? '' : ' line-clamp-3'}`}>
-                                    Ask any leading AI &ldquo;Is Sunrise Holdings Ltd in Fiji legitimate?&rdquo; and it gives a fluent, confident answer &mdash; entirely fabricated from statistical patterns. It cannot check a corporate registry, screen sanctions lists, or verify an LEI number. It <em>sounds</em> authoritative. It is not.
-                                </p>
-                                <button onClick={() => toggleCard('p2')} className="text-red-600 hover:text-red-800 text-xs font-semibold mt-1.5 transition-colors">
-                                    {expandedCards.has('p2') ? 'Show less' : 'Read more \u2192'}
-                                </button>
+                        {/* ── RIGHT: This System ── */}
+                        <div className="relative rounded-md overflow-hidden border border-blue-200 shadow-sm">
+                            <img src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&h=340&fit=crop&auto=format&q=80" alt="" className="w-full h-44 object-cover" loading="lazy" />
+                            <div className="absolute top-0 left-0 right-0 h-44 bg-gradient-to-b from-blue-900/60 to-blue-900/30 flex items-end p-4">
+                                <span className="text-white font-bold text-lg drop-shadow">This System</span>
                             </div>
-                            <div className="p-5 bg-blue-50/40 relative overflow-hidden">
-                                <div className="absolute right-0 top-0 bottom-0 w-20 hidden md:block">
-                                    <img src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=200&h=500&fit=crop&auto=format&q=80" alt="" className="w-full h-full object-cover" loading="lazy" />
-                                    <div className="absolute inset-0 bg-gradient-to-l from-transparent to-blue-50/70" />
-                                </div>
-                                <div className="relative">
-                                    <span className="inline-block px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold uppercase tracking-wider rounded mb-3">This System</span>
-                                    <h3 className="text-base font-bold text-slate-900 mb-2">Real Registry Lookups &bull; Every Claim Sourced</h3>
-                                    <p className="text-sm text-slate-600 leading-relaxed">When someone mentions a company, partner, or jurisdiction, this system queries <strong>real registries</strong> &mdash; sanctions databases, corporate registries, legal entity identifiers, governance data, independent web search, and live news. It tells you what it verified and what it couldn&rsquo;t. Every claim traces to a named source.</p>
-                                </div>
+                            <div className="p-5 bg-blue-50/30">
+                                <p className="text-sm text-slate-700 leading-relaxed mb-3">
+                                    It starts by learning who you are &mdash; your role, your firm, your purpose, your experience level. A novice gets broader exploration. A professional gets entity-level intelligence immediately. Both get the same unbiased data &mdash; the presentation adapts. That&rsquo;s the difference between a chat interface and an advisory system.
+                                </p>
+                                <p className="text-sm text-slate-700 leading-relaxed mb-3">
+                                    When someone mentions a company, partner, or jurisdiction, it queries <strong>real registries</strong> &mdash; sanctions databases, corporate registries, LEI lookups, governance data, independent web search, and live news. It tells you what it verified and what it couldn&rsquo;t. Every claim traces to a named source. When it doesn&rsquo;t have data, it says so.
+                                </p>
+                                <p className="text-sm text-slate-700 leading-relaxed mb-3">
+                                    The same weighted scoring model runs for Papua New Guinea that runs for the United States. The methodology doesn&rsquo;t discriminate. 19 engines challenge, verify, and stress-test every assessment &mdash; adversarial analysis, counterfactual simulation, blind-spot detection, sanctions screening, and live entity intelligence. Run it again tomorrow &mdash; same answer. Every output comes with a method trail.
+                                </p>
+                                <p className="text-sm text-slate-700 leading-relaxed">
+                                    It also scans live global disruptions &mdash; wars, sanctions, trade fractures, supply-chain breaks &mdash; and identifies where those disruptions create structural openings for regional cities and lesser-known jurisdictions. Vietnam replaced China in textiles when tariffs hit. Dubai absorbed displaced Gulf War capital. These patterns repeat &mdash; and this system spots them before the user thinks to ask.
+                                </p>
                             </div>
                         </div>
-                    </div>
-
-                    {/* ── Pair 3: Bias → Identical Formula ── */}
-                    <div className="border border-slate-200 rounded-sm overflow-hidden mb-5 shadow-sm">
-                        <div className="grid md:grid-cols-2">
-                            <div className="p-5 bg-red-50/40 border-b md:border-b-0 md:border-r border-slate-200">
-                                <span className="inline-block px-2 py-0.5 bg-red-100 text-red-700 text-[10px] font-bold uppercase tracking-wider rounded mb-3">The Gap</span>
-                                <h3 className="text-base font-bold text-slate-900 mb-2">The Bias Problem Nobody Talks About</h3>
-                                <p className={`text-sm text-slate-700 leading-relaxed${expandedCards.has('p3') ? '' : ' line-clamp-3'}`}>
-                                    The internet has orders of magnitude more content about New York and Singapore than about Suva, Lusaka, or Tbilisi. When a general AI evaluates a lesser-known market, it defaults to the nearest well-known comparison &mdash; erasing the actual characteristics of the place. <strong className="text-slate-900">Well-known places get the benefit of the doubt. Unknown places get the benefit of the stereotype.</strong>
-                                </p>
-                                <button onClick={() => toggleCard('p3')} className="text-red-600 hover:text-red-800 text-xs font-semibold mt-1.5 transition-colors">
-                                    {expandedCards.has('p3') ? 'Show less' : 'Read more \u2192'}
-                                </button>
-                            </div>
-                            <div className="p-5 bg-blue-50/40 relative overflow-hidden">
-                                <div className="absolute right-0 top-0 bottom-0 w-20 hidden md:block">
-                                    <img src="https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=200&h=500&fit=crop&auto=format&q=80" alt="" className="w-full h-full object-cover" loading="lazy" />
-                                    <div className="absolute inset-0 bg-gradient-to-l from-transparent to-blue-50/70" />
-                                </div>
-                                <div className="relative">
-                                    <span className="inline-block px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold uppercase tracking-wider rounded mb-3">This System</span>
-                                    <h3 className="text-base font-bold text-slate-900 mb-2">Identical Formula, Every Country</h3>
-                                    <p className="text-sm text-slate-600 leading-relaxed">The same weighted scoring model runs for Papua New Guinea that runs for the United States. The data inputs differ &mdash; because reality differs &mdash; but the <strong>methodology doesn&rsquo;t discriminate</strong>. Regional unknowns are evaluated on true merit, not internet popularity.</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* ── Pair 4: No Adversarial Check → Multi-Engine + Deterministic ── */}
-                    <div className="border border-slate-200 rounded-sm overflow-hidden mb-8 shadow-sm">
-                        <div className="grid md:grid-cols-2">
-                            <div className="p-5 bg-red-50/40 border-b md:border-b-0 md:border-r border-slate-200">
-                                <span className="inline-block px-2 py-0.5 bg-red-100 text-red-700 text-[10px] font-bold uppercase tracking-wider rounded mb-3">The Gap</span>
-                                <h3 className="text-base font-bold text-slate-900 mb-2">No Adversarial Check on Its Own Output</h3>
-                                <p className={`text-sm text-slate-700 leading-relaxed${expandedCards.has('p4') ? '' : ' line-clamp-3'}`}>
-                                    When a conventional AI gives you an answer, there is no second engine challenging it. No counterfactual asking &ldquo;what if the opposite is true?&rdquo; No scoring engine running the same formula for Fiji that it runs for Singapore. It&rsquo;s one model, one pass, one perspective &mdash; and in advisory work, one perspective isn&rsquo;t enough.
-                                </p>
-                                <button onClick={() => toggleCard('p4')} className="text-red-600 hover:text-red-800 text-xs font-semibold mt-1.5 transition-colors">
-                                    {expandedCards.has('p4') ? 'Show less' : 'Read more \u2192'}
-                                </button>
-                            </div>
-                            <div className="p-5 bg-blue-50/40 relative overflow-hidden">
-                                <div className="absolute right-0 top-0 bottom-0 w-20 hidden md:block">
-                                    <img src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=200&h=500&fit=crop&auto=format&q=80" alt="" className="w-full h-full object-cover" loading="lazy" />
-                                    <div className="absolute inset-0 bg-gradient-to-l from-transparent to-blue-50/70" />
-                                </div>
-                                <div className="relative">
-                                    <span className="inline-block px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold uppercase tracking-wider rounded mb-3">This System</span>
-                                    <h3 className="text-base font-bold text-slate-900 mb-2">19 Engines &bull; Deterministic &bull; Auditable</h3>
-                                    <p className="text-sm text-slate-600 leading-relaxed">19 engines challenge, verify, and stress-test every assessment &mdash; adversarial analysis, counterfactual simulation, blind-spot detection, sanctions screening, and live entity intelligence. Run it again tomorrow with the same inputs &mdash; same answer. Every output comes with a method trail.</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* ── Global Disruption → Regional Opportunity ── */}
-                    <div className="bg-gradient-to-r from-slate-50 to-blue-50 border border-slate-200 rounded-sm p-6 mb-10">
-                        <h3 className="text-xl font-bold text-slate-900 mb-4">Where World Events Create Regional Opportunity</h3>
-                        <p className="text-sm text-slate-700 leading-relaxed text-justify mb-4">
-                            There is more than ever a need for open-mindedness to places once never thought of. When a crisis hurts a dominant market, somewhere else in the world has the conditions to absorb that displaced demand, talent, capital, or supply-chain link &mdash; <strong className="text-slate-900">if someone spots it first</strong>.
-                        </p>
-                        <p className={`text-sm text-slate-700 leading-relaxed text-justify${expandedCards.has('geo') ? '' : ' line-clamp-3'}`}>
-                            This system scans live global news for active disruptions &mdash; wars, sanctions, trade fractures, supply-chain breaks, currency crises, energy shocks &mdash; and identifies where those disruptions create structural openings for regional cities, small islands, and lesser-known jurisdictions. Vietnam replaced China in textiles when tariffs hit in 2018. Dubai absorbed displaced Gulf War capital in 1991. Georgia&rsquo;s tech sector boomed when Russian IT workers relocated in 2022. Bangladesh captured garment orders diverted from China. Barbados launched a Digital Nomad Visa and attracted remote workers during the pandemic. These patterns repeat &mdash; and this system spots them proactively, before the user even thinks to ask. When someone asks about Mindanao, the system doesn&rsquo;t just evaluate the region in isolation &mdash; it sees the South China Sea tensions, the Red Sea shipping disruptions, and scores Mindanao&rsquo;s ports as a supply-chain arbitrage opportunity. It challenges the current perception and makes you think beyond what is in front of you &mdash; but safely, with historical precedent and real intelligence behind every suggestion.
-                        </p>
-                        <button onClick={() => toggleCard('geo')} className="text-blue-600 hover:text-blue-800 text-xs font-semibold mt-2 transition-colors">
-                            {expandedCards.has('geo') ? 'Show less' : 'Read more \u2192'}
-                        </button>
                     </div>
                 </div>
             </section>
