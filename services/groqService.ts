@@ -29,11 +29,32 @@ export interface GroqMessage {
   content: string;
 }
 
+export interface GroqToolSchema {
+  type: 'function';
+  function: {
+    name: string;
+    description: string;
+    parameters: {
+      type: 'object';
+      properties: Record<string, { type: string; description: string; enum?: string[] }>;
+      required?: string[];
+    };
+  };
+}
+
+export interface GroqToolCall {
+  id: string;
+  type: 'function';
+  function: { name: string; arguments: string };
+}
+
 export interface GroqOptions {
   model?: string;
   maxTokens?: number;
   temperature?: number;
   stream?: boolean;
+  tools?: GroqToolSchema[];
+  toolChoice?: 'auto' | 'none' | { type: 'function'; function: { name: string } };
 }
 
 function getGroqKey(): string {
@@ -97,6 +118,7 @@ export async function callGroq(
     stream: Boolean(onToken),
     stop: null,
     ...(isReasoningModel ? { reasoning_effort: 'medium' } : {}),
+    ...(options.tools?.length ? { tools: options.tools, tool_choice: options.toolChoice ?? 'auto' } : {}),
   };
 
   let res: Response;
@@ -146,7 +168,14 @@ export async function callGroq(
       inputTokens: data.usage?.prompt_tokens,
       outputTokens: data.usage?.completion_tokens,
     });
-    return data.choices?.[0]?.message?.content || '';
+    // Expose tool_calls on the returned string as a hidden property so callers
+    // can detect when the model wants to invoke a tool.
+    const text = data.choices?.[0]?.message?.content || '';
+    const toolCalls = data.choices?.[0]?.message?.tool_calls as GroqToolCall[] | undefined;
+    if (toolCalls && toolCalls.length > 0) {
+      (text as any).__toolCalls = toolCalls;
+    }
+    return text;
   }
 
   // ── SSE streaming ──
@@ -203,3 +232,57 @@ export async function generateWithGroq(
 }
 
 export default { callGroq, isGroqAvailable, generateWithGroq };
+
+/**
+ * Execute a Groq function-calling loop.
+ *
+ * 1. Sends messages + tool schemas to Groq.
+ * 2. If the model emits tool_calls, runs `executeTool(name, args)` for each.
+ * 3. Feeds results back as tool-role messages and loops (max 3 rounds).
+ * 4. Returns the final text answer.
+ */
+export async function callGroqWithTools(
+  messages: GroqMessage[],
+  tools: GroqToolSchema[],
+  executeTool: (name: string, args: Record<string, unknown>) => Promise<string>,
+  options: Omit<GroqOptions, 'tools' | 'toolChoice'> = {}
+): Promise<{ text: string; toolsUsed: string[] }> {
+  const conversation: GroqMessage[] = [...messages];
+  const toolsUsed: string[] = [];
+  const MAX_ROUNDS = 3;
+
+  for (let round = 0; round < MAX_ROUNDS; round++) {
+    const result = await callGroq(conversation, {
+      ...options,
+      tools,
+      toolChoice: 'auto',
+      stream: false,
+    });
+
+    const toolCalls = (result as any).__toolCalls as GroqToolCall[] | undefined;
+    if (!toolCalls || toolCalls.length === 0) {
+      return { text: result, toolsUsed };
+    }
+
+    // Add assistant message (with tool_calls) to conversation
+    conversation.push({ role: 'assistant', content: result || '' });
+
+    for (const tc of toolCalls) {
+      let args: Record<string, unknown> = {};
+      try { args = JSON.parse(tc.function.arguments); } catch { /* empty */ }
+
+      toolsUsed.push(tc.function.name);
+      const toolResult = await executeTool(tc.function.name, args);
+
+      // Groq expects a 'user' message with tool result (OpenAI compat)
+      conversation.push({
+        role: 'user' as const,
+        content: `[Tool Result: ${tc.function.name}]\n${toolResult}`,
+      });
+    }
+  }
+
+  // Max rounds exceeded — do a final call without tools
+  const final = await callGroq(conversation, { ...options, stream: false });
+  return { text: final, toolsUsed };
+}

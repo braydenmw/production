@@ -1426,12 +1426,19 @@ const BWConsultantOS: React.FC<BWConsultantOSProps> = ({ onOpenWorkspace, onNavi
     };
   }, [resolvePolicyPack]);
 
-  // Scroll to bottom on new messages
+  // Scroll to bottom on new messages — debounced so streaming doesn't cause
+  // constant jarring scrolling. Only scrolls if user is near the bottom already.
   useEffect(() => {
     const container = messagesContainerRef.current;
-    if (container) {
-      container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
-    }
+    if (!container) return;
+    const timer = setTimeout(() => {
+      // Only auto-scroll if user is within 300px of the bottom (not scrolled up reading)
+      const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+      if (distanceFromBottom < 300) {
+        container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+      }
+    }, 120);
+    return () => clearTimeout(timer);
   }, [messages]);
 
   const computeReadiness = useCallback((draft: CaseStudy) => {
@@ -3280,7 +3287,7 @@ ${agentRegistry.current.toManifest()}`;
             for (const chunk of chunks) {
               aggregate += chunk;
               onChunk(aggregate.trim());
-              await new Promise<void>((resolve) => setTimeout(resolve, 8));
+              await new Promise<void>((resolve) => setTimeout(resolve, 30));
             }
             return endpointText;
           }
@@ -4634,6 +4641,8 @@ ${agentRegistry.current.toManifest()}`;
                 locationProfileAvailable: !!locationProfileContextRef.current,
                 multiAgentDataGaps: multiAgentContextRef.current ? [] : ['Multi-agent analysis not yet complete'],
                 userQuery: trimmedUserContent,
+                entityIntel: null,       // populated by BWConsultantAgenticAI during consult()
+                vdemGovernance: null,     // populated by BWConsultantAgenticAI during consult()
               });
             } catch { /* non-fatal */ }
 
@@ -4719,6 +4728,7 @@ When asked about ANY person, place, topic, or event:
 - When the user provides a correction or new fact, acknowledge it as NEW information — do not pretend you already knew it.
 - When asking about the system itself ("why did you show this?"), answer the meta-question directly — explain what triggered the insight panel.
 - If LIVE RETRIEVAL RESULTS are provided above, prefer them over training knowledge. If they contradict each other, flag the discrepancy.
+- When ENTITY INTELLIGENCE data is provided (sanctions screening, corporate registry, LEI, V-Dem governance, news sentiment), cite those sources by name. Do NOT fabricate entity details that are not in the provided data. If a source returned no data, say so.
 
 You NEVER say "I need more context before answering" - you answer with what you know, then gather context.`;
 
@@ -4818,26 +4828,84 @@ CRITICAL INSTRUCTION: Write the complete ${reportTierLabel} document NOW. Do NOT
 
 You MUST write each section in full prose, formatted with ## headers, to the specified word count. Start writing the document immediately with no preamble.` : '';
 
+        // ── ENTITY INTELLIGENCE BLOCK ────────────────────────────────────────
+        // When the Entity Intelligence Pipeline has run (via BWConsultantAgenticAI),
+        // inject the real findings into the system prompt so the LLM responds
+        // with SOURCED entity data instead of training-data guesses.
+        let entityIntelBlock = '';
+        const entityIntel = agenticAIRef.current.getEngineResults()?.entityIntel;
+        if (entityIntel) {
+          const parts: string[] = [`\n\n## ENTITY INTELLIGENCE REPORT: ${entityIntel.entityName}`];
+          parts.push(`Risk Level: ${entityIntel.assessment.overallRisk} | Sources: ${entityIntel.assessment.dataSources.join(', ')}`);
+
+          if (entityIntel.sanctions) {
+            parts.push(`Sanctions Screening: ${entityIntel.sanctions.clearanceLevel}${entityIntel.sanctions.totalHits > 0 ? ` (${entityIntel.sanctions.totalHits} hit(s))` : ''}`);
+            if (entityIntel.sanctions.flaggedLists.length > 0) parts.push(`Flagged Lists: ${entityIntel.sanctions.flaggedLists.join(', ')}`);
+          }
+          if (entityIntel.corporate) {
+            parts.push(`Corporate Registry: ${entityIntel.corporate.name}, jurisdiction: ${entityIntel.corporate.jurisdictionCode || 'unknown'}, incorporated: ${entityIntel.corporate.incorporationDate || 'unknown'}`);
+          }
+          if (entityIntel.lei?.verified) {
+            const rec = entityIntel.lei.records[0];
+            parts.push(`LEI: ${rec.lei} (${rec.registrationStatus}), jurisdiction: ${rec.jurisdiction}`);
+          }
+          if (entityIntel.tavilyIntel?.answer) {
+            parts.push(`Web Research Summary: ${entityIntel.tavilyIntel.answer.substring(0, 600)}`);
+          }
+          if (entityIntel.governance) {
+            const g = entityIntel.governance;
+            parts.push(`Jurisdiction Governance (V-Dem): ${g.governanceBand} — Rule of Law: ${((g.ruleOfLaw || 0) * 100).toFixed(0)}/100, Corruption Control: ${((g.corruptionControl || 0) * 100).toFixed(0)}/100`);
+          }
+          if (entityIntel.news.recentCoverage) {
+            parts.push(`Media Coverage: ${entityIntel.news.articles.length} recent articles, sentiment: ${entityIntel.assessment.mediaSentiment}`);
+          }
+          parts.push(`\nINSTRUCTION: Use the above ENTITY INTELLIGENCE as your primary source for this entity. Every claim must be traceable to one of the listed data sources. State clearly when data is unavailable rather than guessing.`);
+          entityIntelBlock = parts.join('\n');
+        }
+
+        // V-Dem governance block (for country-level queries without a specific entity)
+        let vdemBlock = '';
+        const vdemData = agenticAIRef.current.getEngineResults()?.vdemGovernance;
+        if (vdemData && !entityIntel) {
+          vdemBlock = `\n\n## GOVERNANCE INTELLIGENCE (V-Dem v14 - University of Gothenburg)\nGovernance Band: ${vdemData.governanceBand}${vdemData.ruleOfLaw != null ? ` | Rule of Law: ${(vdemData.ruleOfLaw * 100).toFixed(0)}/100` : ''}${vdemData.corruptionControl != null ? ` | Corruption Control: ${(vdemData.corruptionControl * 100).toFixed(0)}/100` : ''}${vdemData.civilLiberties != null ? ` | Civil Liberties: ${(vdemData.civilLiberties * 100).toFixed(0)}/100` : ''}\nThis is independent academic data — use it to assess governance quality objectively.`;
+        }
+
         const effectiveSystemPrompt = isReportGeneration
-          ? `${reportGenerationOverride}\n\n${memoryBlock}${brainBlock}${advancedIntelligenceBlock}`
-          : `${liveSearchBlock}${brainBlock}${advancedIntelligenceBlock}${memoryBlock}${docUploadBlock}${openingInstruction}`;
+          ? `${reportGenerationOverride}\n\n${memoryBlock}${brainBlock}${advancedIntelligenceBlock}${entityIntelBlock}${vdemBlock}`
+          : `${liveSearchBlock}${brainBlock}${advancedIntelligenceBlock}${entityIntelBlock}${vdemBlock}${memoryBlock}${docUploadBlock}${openingInstruction}`;
 
         // Strip the GENERATE_REPORT_NOW:: prefix before sending to AI
         const effectiveUserContent = isReportGeneration
           ? userContent.replace(/^GENERATE_REPORT_NOW::[^\n]*\n/, '').trim()
           : userContent;
 
+        // Throttle streaming updates — Groq streams so fast the text is unreadable otherwise.
+        // Buffer tokens and update UI every 40ms (≈25 fps) for a readable typing effect.
+        let _streamBuffer = '';
+        let _streamTimer: ReturnType<typeof setTimeout> | null = null;
+        const flushStream = () => {
+          const snapshot = _streamBuffer;
+          setMessages(prev => prev.map((msg) => (
+            msg.id === assistantMessageId ? { ...msg, content: snapshot } : msg
+          )));
+          _streamTimer = null;
+        };
+
         responseContent = await processWithAIStream(
           effectiveUserContent,
           effectiveSystemPrompt,
           (streamText) => {
-            setMessages(prev => prev.map((msg) => (
-              msg.id === assistantMessageId ? { ...msg, content: streamText } : msg
-            )));
-            // Voice playback is triggered on final rendered message to ensure
-            // spoken output matches visible text exactly.
+            _streamBuffer = streamText;
+            if (!_streamTimer) {
+              _streamTimer = setTimeout(flushStream, 40);
+            }
           }
         );
+        // Flush any remaining buffered text
+        if (_streamTimer) { clearTimeout(_streamTimer); _streamTimer = null; }
+        setMessages(prev => prev.map((msg) => (
+          msg.id === assistantMessageId ? { ...msg, content: responseContent } : msg
+        )));
         setExecutionTaskStatus('response', 'completed', 'Primary response delivered');
         // ── SAVE TURN TO PERSISTENT MEMORY ──
         memoryRef.current.remember('consultant-turns', {
@@ -7908,11 +7976,61 @@ You MUST write each section in full prose, formatted with ## headers, to the spe
                 ) : (
                   <div className="border border-stone-200 bg-white px-4 py-4 min-h-[700px]">
                     <p className="text-[11px] font-semibold text-slate-800">Case Study Notes - Live Notepad (Page 1)</p>
-                    <p className="mt-1 text-[10px] text-slate-500">Blank workspace for tracking conversation inputs. Content appears only when you add it.</p>
-                    <div className="mt-3 space-y-3">
-                      {Array.from({ length: 20 }).map((_, index) => (
-                        <div key={`a4-line-live-${index}`} className="border-b border-stone-200 h-5" />
-                      ))}
+                    <p className="mt-1 text-[10px] text-slate-500">BW Consultant side notes — auto-captured from conversation.</p>
+                    <div className="mt-3 space-y-2 text-[10px] text-slate-700">
+                      {/* Identity & Context */}
+                      {(caseStudy.userName || caseStudy.contactRole || caseStudy.organizationName) && (
+                        <div className="border-b border-stone-200 pb-2">
+                          <p className="font-semibold text-slate-800 mb-0.5">Client Identity</p>
+                          {caseStudy.userName && <p>• Name: {caseStudy.userName}</p>}
+                          {caseStudy.contactRole && <p>• Role: {caseStudy.contactRole}</p>}
+                          {caseStudy.organizationName && <p>• Organisation: {caseStudy.organizationName}</p>}
+                          {caseStudy.organizationType && <p>• Type: {caseStudy.organizationType}</p>}
+                        </div>
+                      )}
+                      {/* Location & Jurisdiction */}
+                      {(caseStudy.country || caseStudy.jurisdiction) && (
+                        <div className="border-b border-stone-200 pb-2">
+                          <p className="font-semibold text-slate-800 mb-0.5">Jurisdiction</p>
+                          {caseStudy.country && <p>• Country: {caseStudy.country}</p>}
+                          {caseStudy.jurisdiction && <p>• Jurisdiction: {caseStudy.jurisdiction}</p>}
+                        </div>
+                      )}
+                      {/* Matter & Objectives */}
+                      {(caseStudy.currentMatter || caseStudy.objectives) && (
+                        <div className="border-b border-stone-200 pb-2">
+                          <p className="font-semibold text-slate-800 mb-0.5">Matter & Objectives</p>
+                          {caseStudy.currentMatter && <p>• Matter: {caseStudy.currentMatter}</p>}
+                          {caseStudy.objectives && <p>• Objective: {caseStudy.objectives}</p>}
+                          {caseStudy.targetAudience && <p>• Audience: {caseStudy.targetAudience}</p>}
+                          {caseStudy.constraints && <p>• Constraints: {caseStudy.constraints}</p>}
+                          {caseStudy.decisionDeadline && <p>• Deadline: {caseStudy.decisionDeadline}</p>}
+                        </div>
+                      )}
+                      {/* AI Insights — side notes captured during conversation */}
+                      {caseStudy.aiInsights.length > 0 && (
+                        <div className="border-b border-stone-200 pb-2">
+                          <p className="font-semibold text-slate-800 mb-0.5">Consultant Observations ({caseStudy.aiInsights.length})</p>
+                          {caseStudy.aiInsights.slice(-8).map((insight, idx) => (
+                            <p key={`note-${idx}`} className="text-[9px] text-slate-600 leading-tight">• {insight.length > 200 ? insight.slice(0, 200) + '...' : insight}</p>
+                          ))}
+                        </div>
+                      )}
+                      {/* Additional context from conversation history */}
+                      {caseStudy.additionalContext.length > 0 && (
+                        <div className="border-b border-stone-200 pb-2">
+                          <p className="font-semibold text-slate-800 mb-0.5">Conversation Notes ({caseStudy.additionalContext.length})</p>
+                          {caseStudy.additionalContext.slice(-6).map((ctx, idx) => (
+                            <p key={`ctx-${idx}`} className="text-[9px] text-slate-600 leading-tight">• {ctx.length > 200 ? ctx.slice(0, 200) + '...' : ctx}</p>
+                          ))}
+                        </div>
+                      )}
+                      {/* Remaining blank lines for future notes */}
+                      <div className="mt-2 space-y-3">
+                        {Array.from({ length: Math.max(5, 15 - caseStudy.aiInsights.length - caseStudy.additionalContext.length) }).map((_, index) => (
+                          <div key={`a4-line-live-${index}`} className="border-b border-stone-200 h-5" />
+                        ))}
+                      </div>
                     </div>
                   </div>
                 )}

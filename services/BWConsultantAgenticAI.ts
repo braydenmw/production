@@ -2,6 +2,8 @@ import { EventBus } from './EventBus';
 import { persistentMemory } from './PersistentMemorySystem';
 import { automaticSearchService, type SearchResult } from './AutomaticSearchService';
 import { ReactiveIntelligenceEngine } from './ReactiveIntelligenceEngine';
+import { detectEntityInQuery, runEntityIntelligence, type EntityIntelligenceReport } from './EntityIntelligencePipeline';
+import { getVDemProfile } from './vdemGovernanceService';
 
 export interface ConsultantInsight {
   id: string;
@@ -37,6 +39,9 @@ export interface EngineResultsSummary {
   locationProfileAvailable?: boolean;
   multiAgentDataGaps?: string[];
   userQuery?: string;
+  // Entity Intelligence Pipeline results (Tier 1 + 2 data sources)
+  entityIntel?: EntityIntelligenceReport | null;
+  vdemGovernance?: { governanceBand: string; ruleOfLaw?: number; corruptionControl?: number; civilLiberties?: number } | null;
 }
 
 export interface BWConsultantState {
@@ -62,6 +67,8 @@ export class BWConsultantAgenticAI {
 
   // Stored engine results for current turn
   private _engineResults: EngineResultsSummary | null = null;
+  // Cached entity intelligence for the current conversation turn
+  private _entityIntel: EntityIntelligenceReport | null = null;
 
   /** Get current engine results (for merging updates) */
   getEngineResults(): EngineResultsSummary | null {
@@ -138,6 +145,22 @@ export class BWConsultantAgenticAI {
     // Determines if the user wants general info vs a report/document/deeper engagement
     const intentInsight = this.generateIntentSignal(params, context);
     if (intentInsight) insights.push(intentInsight);
+
+    // ── ENTITY MATCHING & PARTNERSHIP ASSESSMENT ──
+    // When we know who the user is AND who/what they're inquiring about,
+    // evaluate compatibility and suggest matching opportunities
+    const matchInsight = this.generateEntityMatchInsight(params);
+    if (matchInsight) insights.push(matchInsight);
+
+    // ── ENTITY INTELLIGENCE PIPELINE ──
+    // Run real-time entity lookup when an entity is detected in the query
+    const entityInsights = await this.runEntityIntelligencePipeline(params);
+    insights.push(...entityInsights);
+
+    // ── V-DEM GOVERNANCE ENHANCEMENT ──
+    // Enrich country-level analysis with granular governance data
+    const govInsight = this.generateGovernanceInsight(params);
+    if (govInsight) insights.push(govInsight);
 
     // Risk assessment insights (now context-aware, not generic)
     const riskInsights = await this.generateRiskInsights(params);
@@ -251,6 +274,253 @@ export class BWConsultantAgenticAI {
     }
 
     return insights;
+  }
+
+  // ── ENTITY MATCHING & PARTNERSHIP ASSESSMENT ──
+  // When the system knows who the user is and who/what they're asking about,
+  // evaluate compatibility and suggest whether it's a good match
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private generateEntityMatchInsight(params: any): ConsultantInsight | null {
+    const eng = this._engineResults;
+    const userOrg = params.organizationName || '';
+    const userRole = params.role || '';
+    const userCountry = params.country || '';
+    const userSector = params.constraints || params.audience || '';
+    const querySubject = eng?.userQuery || params.problemStatement || '';
+
+    // Need to know who the user is AND what they're asking about
+    if (!userOrg && !userRole) return null;
+    if (!querySubject || querySubject.length < 10) return null;
+
+    // Detect if the query is about a specific entity (person, org, location)
+    const isAboutEntity = /\b(mayor|governor|minister|president|ceo|director|company|corporation|agency|bank|fund|authority|municipality|province|city)\b/i.test(querySubject);
+    const isPartnershipQuery = /\b(partner|collaborate|invest|engage|deal|contract|joint venture|MOU|working with|doing business)\b/i.test(querySubject);
+
+    if (!isAboutEntity && !isPartnershipQuery) return null;
+
+    // Build match assessment using available engine data
+    const matchFactors: string[] = [];
+    const concerns: string[] = [];
+
+    // Geographic alignment
+    if (userCountry) {
+      const queryMentionsUserCountry = querySubject.toLowerCase().includes(userCountry.toLowerCase());
+      if (queryMentionsUserCountry) {
+        matchFactors.push(`Geographic alignment — ${userCountry} is in your operating jurisdiction`);
+      } else {
+        concerns.push('Cross-border engagement — verify regulatory and compliance requirements');
+      }
+    }
+
+    // Use NSIL trust score if available
+    if (eng?.nsilTrustScore != null) {
+      if (eng.nsilTrustScore >= 70) {
+        matchFactors.push(`NSIL trust score: ${eng.nsilTrustScore}/100 — strong foundation for engagement`);
+      } else if (eng.nsilTrustScore >= 40) {
+        matchFactors.push(`NSIL trust score: ${eng.nsilTrustScore}/100 — engagement viable with due diligence`);
+      } else {
+        concerns.push(`NSIL trust score: ${eng.nsilTrustScore}/100 — elevated caution recommended`);
+      }
+    }
+
+    // Use unbiased assessment
+    if (eng?.unbiasedRecommendation) {
+      const labels: Record<string, string> = {
+        'proceed': 'Unbiased assessment: favourable for engagement',
+        'proceed-with-caution': 'Unbiased assessment: viable but proceed carefully',
+        'reconsider': 'Unbiased assessment: alternatives may offer better fit',
+        'not-recommended': 'Unbiased assessment: significant compatibility concerns'
+      };
+      const label = labels[eng.unbiasedRecommendation];
+      if (label) {
+        if (eng.unbiasedRecommendation === 'reconsider' || eng.unbiasedRecommendation === 'not-recommended') {
+          concerns.push(label);
+        } else {
+          matchFactors.push(label);
+        }
+      }
+    }
+
+    // Historical success rate
+    if (eng?.historicalSuccessRate != null) {
+      matchFactors.push(`Historical success rate for similar engagements: ${eng.historicalSuccessRate}%`);
+    }
+
+    if (matchFactors.length === 0 && concerns.length === 0) return null;
+
+    const compatibility = concerns.length === 0 ? 'STRONG' : matchFactors.length > concerns.length ? 'VIABLE' : 'NEEDS REVIEW';
+    const content = [
+      `Compatibility: ${compatibility}.`,
+      matchFactors.length > 0 ? `Strengths: ${matchFactors.join('. ')}` : '',
+      concerns.length > 0 ? `Considerations: ${concerns.join('. ')}` : '',
+      isPartnershipQuery ? 'BW Nexus can perform a full bilateral evaluation — analysing both sides of the engagement.' : '',
+    ].filter(Boolean).join(' ');
+
+    return {
+      id: crypto.randomUUID(),
+      type: 'comparative_intel',
+      title: `Entity Match Assessment: ${compatibility}`,
+      content,
+      confidence: matchFactors.length > concerns.length ? 0.8 : 0.7,
+      sources: ['Entity Matching Engine', 'NSIL Intelligence Hub', 'UnbiasedAnalysisEngine'],
+      proactive: true,
+      timestamp: new Date()
+    };
+  }
+
+  // ── ENTITY INTELLIGENCE PIPELINE ──
+  // Runs Tier 1 + 2 real-time lookups (sanctions, corporate registry, GLEIF,
+  // web research, news sentiment, governance) when an entity is detected.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private async runEntityIntelligencePipeline(params: any): Promise<ConsultantInsight[]> {
+    const insights: ConsultantInsight[] = [];
+    const eng = this._engineResults;
+    const query = eng?.userQuery || params.problemStatement || '';
+
+    const detected = detectEntityInQuery(query);
+    if (!detected) return insights;
+
+    try {
+      const report = await runEntityIntelligence(
+        detected.entityName,
+        detected.entityType,
+        params.country || undefined
+      );
+      this._entityIntel = report;
+
+      // Update engine results with entity intel for downstream consumers
+      if (eng) {
+        eng.entityIntel = report;
+      }
+
+      // --- Sanctions insight ---
+      if (report.sanctions && report.sanctions.clearanceLevel !== 'Clear') {
+        insights.push({
+          id: crypto.randomUUID(),
+          type: 'risk_assessment',
+          title: `Sanctions Screening: ${report.sanctions.clearanceLevel}`,
+          content: `${detected.entityName} flagged by ${report.sanctions.flaggedLists.join(', ') || 'sanctions databases'}. ${report.sanctions.hits.filter(h => h.isSanctioned).length} sanctioned hit(s), ${report.sanctions.hits.filter(h => h.isPEP).length} PEP hit(s). Proceed with enhanced due diligence.`,
+          confidence: 0.95,
+          sources: ['OpenSanctions', ...report.sanctions.flaggedLists.slice(0, 3)],
+          proactive: true,
+          timestamp: new Date(),
+        });
+      } else if (report.sanctions) {
+        insights.push({
+          id: crypto.randomUUID(),
+          type: 'data_coverage',
+          title: 'Sanctions Screening: Clear',
+          content: `${detected.entityName} — no matches across OFAC, EU, UN, INTERPOL, and World Bank debarment lists.`,
+          confidence: 0.92,
+          sources: ['OpenSanctions'],
+          proactive: true,
+          timestamp: new Date(),
+        });
+      }
+
+      // --- Corporate verification insight ---
+      if (report.corporate || report.lei?.verified) {
+        const parts: string[] = [];
+        if (report.corporate) {
+          parts.push(`Registered as ${report.corporate.name} in ${report.corporate.jurisdictionCode || 'unknown jurisdiction'}`);
+          if (report.corporate.incorporationDate) parts.push(`incorporated ${report.corporate.incorporationDate}`);
+        }
+        if (report.lei?.verified) {
+          const rec = report.lei.records[0];
+          parts.push(`LEI verified: ${rec.lei} (status: ${rec.registrationStatus})`);
+        }
+        insights.push({
+          id: crypto.randomUUID(),
+          type: 'data_coverage',
+          title: `Entity Verified: ${detected.entityName}`,
+          content: parts.join('. ') + '.',
+          confidence: 0.9,
+          sources: [
+            ...(report.corporate ? ['OpenCorporates'] : []),
+            ...(report.lei?.verified ? ['GLEIF'] : []),
+          ],
+          proactive: true,
+          timestamp: new Date(),
+        });
+      }
+
+      // --- Overall entity risk ---
+      if (report.assessment.overallRisk !== 'LOW') {
+        insights.push({
+          id: crypto.randomUUID(),
+          type: 'risk_assessment',
+          title: `Entity Risk: ${report.assessment.overallRisk}`,
+          content: report.assessment.summary,
+          confidence: 0.85,
+          sources: report.assessment.dataSources.slice(0, 4),
+          proactive: true,
+          timestamp: new Date(),
+        });
+      }
+
+      // --- News sentiment ---
+      if (report.news.recentCoverage && report.news.averageTone != null) {
+        const sentiment = report.assessment.mediaSentiment;
+        if (sentiment !== 'no-data') {
+          insights.push({
+            id: crypto.randomUUID(),
+            type: 'comparative_intel',
+            title: `Media Sentiment: ${sentiment.charAt(0).toUpperCase() + sentiment.slice(1)}`,
+            content: `${report.news.articles.length} recent articles found via GDELT. Average tone: ${report.news.averageTone.toFixed(1)}. ${report.news.articles.slice(0, 2).map(a => a.title).join(' | ')}`,
+            confidence: 0.7,
+            sources: ['GDELT Global News'],
+            proactive: true,
+            timestamp: new Date(),
+          });
+        }
+      }
+    } catch {
+      // Entity intelligence is non-fatal — degrade gracefully
+    }
+
+    return insights;
+  }
+
+  // ── V-DEM GOVERNANCE INSIGHT ──
+  // Enriches country-level analysis with granular governance data
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private generateGovernanceInsight(params: any): ConsultantInsight | null {
+    const country = params.country || '';
+    if (!country) return null;
+
+    const eng = this._engineResults;
+    // Skip if V-Dem data already provided via engine results
+    if (eng?.vdemGovernance) return null;
+
+    const profile = getVDemProfile(country);
+    if (!profile) return null;
+
+    // Store in engine results for downstream use
+    if (eng) {
+      eng.vdemGovernance = {
+        governanceBand: profile.governanceBand,
+        ruleOfLaw: profile.ruleOfLaw,
+        corruptionControl: profile.corruptionControl,
+        civilLiberties: profile.civilLiberties,
+      };
+    }
+
+    const highlights: string[] = [];
+    if (profile.ruleOfLaw != null) highlights.push(`Rule of Law: ${(profile.ruleOfLaw * 100).toFixed(0)}/100`);
+    if (profile.corruptionControl != null) highlights.push(`Corruption Control: ${(profile.corruptionControl * 100).toFixed(0)}/100`);
+    if (profile.civilLiberties != null) highlights.push(`Civil Liberties: ${(profile.civilLiberties * 100).toFixed(0)}/100`);
+    if (profile.freedomOfExpression != null) highlights.push(`Free Expression: ${(profile.freedomOfExpression * 100).toFixed(0)}/100`);
+
+    return {
+      id: crypto.randomUUID(),
+      type: 'comparative_intel',
+      title: `Governance: ${profile.governanceBand.toUpperCase()} (${profile.country})`,
+      content: `V-Dem assessment: ${highlights.join('. ')}. Band: ${profile.governanceBand}. This scores ${country} on democratic governance independently of economic fame or market size.`,
+      confidence: 0.88,
+      sources: ['V-Dem v14 Dataset (University of Gothenburg)'],
+      proactive: true,
+      timestamp: new Date(),
+    };
   }
 
   // Generate risk assessment insights — now engine-powered, not generic
