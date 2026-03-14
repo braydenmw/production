@@ -3,12 +3,144 @@
  * CLIENT-SIDE OPENAI SERVICE
  * 
  *
- * Direct OpenAI API calls from browser - no backend required
- * Used for BW Intel Fact Sheet when backend is unavailable
+ * Direct OpenAI API calls from browser - no backend required.
+ * Provides both simple single-prompt calls and full chat-completion
+ * interface compatible with Together/Groq message format for use
+ * in ReasoningPipeline and MultiModelRouter.
  */
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const OPENAI_API_KEY = (import.meta as any).env?.VITE_OPENAI_API_KEY || '';
+const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
+export const OPENAI_DEFAULT_MODEL = 'gpt-4o';
+export const OPENAI_FAST_MODEL = 'gpt-4o-mini';
+
+import { monitoringService } from './MonitoringService';
+
+export interface OpenAIChatMessage {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+}
+
+export interface OpenAIChatOptions {
+  model?: string;
+  maxTokens?: number;
+  temperature?: number;
+  stream?: boolean;
+}
+
+/** Returns true if a valid OpenAI API key is configured. */
+export function isOpenAIAvailable(): boolean {
+  if (!OPENAI_API_KEY || OPENAI_API_KEY.length < 20) return false;
+  const lower = OPENAI_API_KEY.toLowerCase();
+  return !(lower.includes('your-') || lower.includes('your_') || lower.includes('key-here') || lower.includes('placeholder'));
+}
+
+/**
+ * Call OpenAI chat completions API - compatible with Together/Groq interface.
+ * Supports streaming via onToken callback.
+ */
+export async function callOpenAIChat(
+  messages: OpenAIChatMessage[],
+  options: OpenAIChatOptions = {},
+  onToken?: (token: string) => void
+): Promise<string> {
+  if (!isOpenAIAvailable()) {
+    throw new Error('OpenAI API key not configured. Add VITE_OPENAI_API_KEY to your .env file.');
+  }
+
+  const modelUsed = options.model ?? OPENAI_DEFAULT_MODEL;
+  const callStart = performance.now();
+
+  const body = JSON.stringify({
+    model: modelUsed,
+    messages,
+    max_tokens: options.maxTokens ?? 4096,
+    temperature: options.temperature ?? 0.4,
+    stream: Boolean(onToken),
+  });
+
+  let res: Response;
+  try {
+    res = await fetch(OPENAI_API_URL, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body,
+    });
+  } catch (err) {
+    monitoringService.trackAICall({
+      timestamp: new Date().toISOString(),
+      model: modelUsed,
+      provider: 'openai',
+      latencyMs: Math.round(performance.now() - callStart),
+      success: false,
+      error: err instanceof Error ? err.message : 'Network error',
+    });
+    throw err;
+  }
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => '');
+    monitoringService.trackAICall({
+      timestamp: new Date().toISOString(),
+      model: modelUsed,
+      provider: 'openai',
+      latencyMs: Math.round(performance.now() - callStart),
+      success: false,
+      error: `${res.status}: ${errText.slice(0, 200)}`,
+    });
+    throw new Error(`OpenAI ${res.status}: ${errText}`);
+  }
+
+  // ── Non-streaming ──
+  if (!onToken) {
+    const data = await res.json();
+    monitoringService.trackAICall({
+      timestamp: new Date().toISOString(),
+      model: modelUsed,
+      provider: 'openai',
+      latencyMs: Math.round(performance.now() - callStart),
+      success: true,
+      inputTokens: data.usage?.prompt_tokens,
+      outputTokens: data.usage?.completion_tokens,
+    });
+    return data.choices?.[0]?.message?.content || '';
+  }
+
+  // ── SSE streaming ──
+  const reader = res.body?.getReader();
+  if (!reader) throw new Error('No stream body from OpenAI');
+
+  const dec = new TextDecoder();
+  let full = '', buf = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, { stream: true });
+    const lines = buf.split('\n');
+    buf = lines.pop() || '';
+    for (const line of lines) {
+      const trimmed = line.replace(/^data:\s*/, '').trim();
+      if (!trimmed || trimmed === '[DONE]') continue;
+      try {
+        const tok = JSON.parse(trimmed).choices?.[0]?.delta?.content || '';
+        if (tok) { full += tok; onToken(tok); }
+      } catch { /* partial chunk */ }
+    }
+  }
+  monitoringService.trackAICall({
+    timestamp: new Date().toISOString(),
+    model: modelUsed,
+    provider: 'openai',
+    latencyMs: Math.round(performance.now() - callStart),
+    success: true,
+  });
+  return full;
+}
 
 export interface OpenAIResponse {
   content: string;
@@ -273,6 +405,8 @@ Format appropriately for the document type with proper headings, sections, and p
 
 export default {
   callOpenAI,
+  callOpenAIChat,
+  isOpenAIAvailable,
   generateLocationIntelligence,
   generateDocument,
 };

@@ -25,6 +25,7 @@ import {
   type TogetherOptions,
 } from './togetherAIService';
 import { callGroq, isGroqAvailable, GROQ_DEFAULT_MODEL, GROQ_FAST_MODEL, GROQ_REASONING_MODEL } from './groqService';
+import { callOpenAIChat, isOpenAIAvailable, OPENAI_DEFAULT_MODEL, OPENAI_FAST_MODEL } from './openaiClientService';
 
 // ─── Task Types ─────────────────────────────────────────────────────────────
 
@@ -69,11 +70,11 @@ const TASK_DEFAULTS: Record<AITaskType, Partial<TogetherOptions>> = {
 };
 
 // Fallback chain: if primary model fails, try these in order
-// Groq models are prefixed with 'groq:' to distinguish providers
+// Groq models are prefixed with 'groq:', OpenAI with 'openai:'
 const FALLBACK_CHAIN: Record<string, string[]> = {
-  [TOGETHER_FAST_MODEL]:    [TOGETHER_DEFAULT_MODEL, `groq:${GROQ_FAST_MODEL}`, `groq:${GROQ_DEFAULT_MODEL}`],
-  [TOGETHER_DEFAULT_MODEL]: [TOGETHER_FAST_MODEL, `groq:${GROQ_REASONING_MODEL}`, `groq:${GROQ_DEFAULT_MODEL}`, `groq:${GROQ_FAST_MODEL}`],
-  [TOGETHER_VISION_MODEL]:  [TOGETHER_DEFAULT_MODEL, TOGETHER_FAST_MODEL, `groq:${GROQ_DEFAULT_MODEL}`],
+  [TOGETHER_FAST_MODEL]:    [`openai:${OPENAI_FAST_MODEL}`, TOGETHER_DEFAULT_MODEL, `groq:${GROQ_FAST_MODEL}`, `groq:${GROQ_DEFAULT_MODEL}`],
+  [TOGETHER_DEFAULT_MODEL]: [`openai:${OPENAI_DEFAULT_MODEL}`, TOGETHER_FAST_MODEL, `groq:${GROQ_REASONING_MODEL}`, `groq:${GROQ_DEFAULT_MODEL}`, `groq:${GROQ_FAST_MODEL}`],
+  [TOGETHER_VISION_MODEL]:  [`openai:${OPENAI_DEFAULT_MODEL}`, TOGETHER_DEFAULT_MODEL, TOGETHER_FAST_MODEL, `groq:${GROQ_DEFAULT_MODEL}`],
 };
 
 // ─── Usage Tracking ─────────────────────────────────────────────────────────
@@ -139,7 +140,15 @@ export async function routeAITask(
     for (const fallbackModel of fallbacks) {
       try {
         let fallbackResult: string;
-        if (fallbackModel.startsWith('groq:')) {
+        if (fallbackModel.startsWith('openai:')) {
+          if (!isOpenAIAvailable()) continue;
+          const openaiModel = fallbackModel.replace('openai:', '');
+          fallbackResult = await callOpenAIChat(
+            messages,
+            { model: openaiModel, maxTokens: mergedOptions.maxTokens, temperature: mergedOptions.temperature },
+            onToken
+          );
+        } else if (fallbackModel.startsWith('groq:')) {
           if (!isGroqAvailable()) continue;
           const groqModel = fallbackModel.replace('groq:', '');
           fallbackResult = await callGroq(

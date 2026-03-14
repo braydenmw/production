@@ -16,6 +16,7 @@
 
 import { callTogether } from './togetherAIService';
 import { callGroq, isGroqAvailable, GROQ_REASONING_MODEL } from './groqService';
+import { callOpenAIChat, isOpenAIAvailable, OPENAI_DEFAULT_MODEL } from './openaiClientService';
 import { SYSTEM_INSTRUCTION_SHORT } from './aiPolicy';
 import type { IntelligenceBlock } from './IssueSolutionPipeline';
 import { conversationMemoryManager } from './ConversationMemoryManager';
@@ -254,16 +255,16 @@ export async function runReasoningPipeline(
     ];
     const thinkOpts = { model: 'meta-llama/Llama-3.1-70B-Instruct-Turbo', maxTokens: 600, temperature: 0.2 };
 
-    // Race Together.ai vs Groq (gpt-oss-120b deep reasoning): use whichever returns first
+    // Race all available providers: OpenAI + Together.ai + Groq — use whichever returns first
     let thinkRaw: string;
-    if (isGroqAvailable()) {
-      thinkRaw = await Promise.any([
-        callTogether(thinkMessages, thinkOpts),
-        callGroq(thinkMessages, { model: GROQ_REASONING_MODEL, maxTokens: 600, temperature: 0.2 }),
-      ]);
-    } else {
-      thinkRaw = await callTogether(thinkMessages, thinkOpts);
+    const thinkCandidates: Promise<string>[] = [callTogether(thinkMessages, thinkOpts)];
+    if (isOpenAIAvailable()) {
+      thinkCandidates.push(callOpenAIChat(thinkMessages, { model: OPENAI_DEFAULT_MODEL, maxTokens: 600, temperature: 0.2 }));
     }
+    if (isGroqAvailable()) {
+      thinkCandidates.push(callGroq(thinkMessages, { model: GROQ_REASONING_MODEL, maxTokens: 600, temperature: 0.2 }));
+    }
+    thinkRaw = await Promise.any(thinkCandidates);
 
     const jsonMatch = thinkRaw.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
@@ -295,15 +296,15 @@ export async function runReasoningPipeline(
       ];
       const answerOpts = { model: 'meta-llama/Llama-3.1-70B-Instruct-Turbo', maxTokens: 4096, temperature: 0.35 };
 
-      // Race Together.ai vs Groq for best latency
-      if (isGroqAvailable()) {
-        answer = await Promise.any([
-          callTogether(answerMessages, answerOpts),
-          callGroq(answerMessages, { maxTokens: 4096, temperature: 0.35 }),
-        ]);
-      } else {
-        answer = await callTogether(answerMessages, answerOpts);
+      // Race all available providers for best latency
+      const answerCandidates: Promise<string>[] = [callTogether(answerMessages, answerOpts)];
+      if (isOpenAIAvailable()) {
+        answerCandidates.push(callOpenAIChat(answerMessages, { model: OPENAI_DEFAULT_MODEL, maxTokens: 4096, temperature: 0.35 }));
       }
+      if (isGroqAvailable()) {
+        answerCandidates.push(callGroq(answerMessages, { maxTokens: 4096, temperature: 0.35 }));
+      }
+      answer = await Promise.any(answerCandidates);
     } catch (err) {
       console.warn('[ReasoningPipeline] Answer step failed:', err);
     }
@@ -327,15 +328,17 @@ export async function runReasoningPipeline(
         { role: 'system', content: SYSTEM_INSTRUCTION_SHORT },
         { role: 'user', content: directPrompt },
       ];
-      // Race Together vs Groq for the direct fallback too
-      if (isGroqAvailable()) {
-        answer = await Promise.any([
-          callTogether(directMessages, { model: 'meta-llama/Llama-3.1-70B-Instruct-Turbo', maxTokens: 4096, temperature: 0.4 }),
-          callGroq(directMessages, { maxTokens: 4096, temperature: 0.4 }),
-        ]);
-      } else {
-        answer = await callTogether(directMessages, { model: 'meta-llama/Llama-3.1-70B-Instruct-Turbo', maxTokens: 4096, temperature: 0.4 });
+      // Race all available providers for the direct fallback too
+      const directCandidates: Promise<string>[] = [
+        callTogether(directMessages, { model: 'meta-llama/Llama-3.1-70B-Instruct-Turbo', maxTokens: 4096, temperature: 0.4 }),
+      ];
+      if (isOpenAIAvailable()) {
+        directCandidates.push(callOpenAIChat(directMessages, { model: OPENAI_DEFAULT_MODEL, maxTokens: 4096, temperature: 0.4 }));
       }
+      if (isGroqAvailable()) {
+        directCandidates.push(callGroq(directMessages, { maxTokens: 4096, temperature: 0.4 }));
+      }
+      answer = await Promise.any(directCandidates);
     } catch (err) {
       console.warn('[ReasoningPipeline] Direct answer also failed:', err);
       answer = '';
@@ -405,16 +408,16 @@ export async function runReasoningPipelineStream(
     ];
     const thinkOpts = { model: 'meta-llama/Llama-3.1-70B-Instruct-Turbo', maxTokens: 600, temperature: 0.2 };
 
-    // Race Together.ai vs Groq (gpt-oss-120b deep reasoning) for fastest think
+    // Race all available providers for fastest think
     let thinkRaw: string;
-    if (isGroqAvailable()) {
-      thinkRaw = await Promise.any([
-        callTogether(thinkMessages, thinkOpts),
-        callGroq(thinkMessages, { model: GROQ_REASONING_MODEL, maxTokens: 600, temperature: 0.2 }),
-      ]);
-    } else {
-      thinkRaw = await callTogether(thinkMessages, thinkOpts);
+    const thinkStreamCandidates: Promise<string>[] = [callTogether(thinkMessages, thinkOpts)];
+    if (isOpenAIAvailable()) {
+      thinkStreamCandidates.push(callOpenAIChat(thinkMessages, { model: OPENAI_DEFAULT_MODEL, maxTokens: 600, temperature: 0.2 }));
     }
+    if (isGroqAvailable()) {
+      thinkStreamCandidates.push(callGroq(thinkMessages, { model: GROQ_REASONING_MODEL, maxTokens: 600, temperature: 0.2 }));
+    }
+    thinkRaw = await Promise.any(thinkStreamCandidates);
     const jsonMatch = thinkRaw.match(/\{[\s\S]*\}/);
     if (jsonMatch) reasoning = JSON.parse(jsonMatch[0]);
   } catch (err) {
@@ -456,11 +459,29 @@ export async function runReasoningPipelineStream(
       }
     );
   } catch (err) {
-    console.warn('[ReasoningPipeline] Together stream failed, trying Groq:', err);
+    console.warn('[ReasoningPipeline] Together stream failed, trying OpenAI:', err);
     streamFailed = true;
   }
 
-  // Groq fallback: if Together streaming failed, try Groq
+  // OpenAI fallback: if Together streaming failed, try OpenAI
+  if (streamFailed && isOpenAIAvailable()) {
+    try {
+      accumulated = '';
+      await callOpenAIChat(
+        answerMessages,
+        { model: OPENAI_DEFAULT_MODEL, maxTokens: 4096, temperature: 0.35, stream: true },
+        (token) => {
+          accumulated += token;
+          onToken(accumulated);
+        }
+      );
+      streamFailed = false;
+    } catch (openaiErr) {
+      console.warn('[ReasoningPipeline] OpenAI stream also failed, trying Groq:', openaiErr);
+    }
+  }
+
+  // Groq fallback: if OpenAI also failed, try Groq
   if (streamFailed && isGroqAvailable()) {
     try {
       accumulated = '';

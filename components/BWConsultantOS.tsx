@@ -3244,12 +3244,13 @@ ${agentRegistry.current.toManifest()}`;
       });
 
       if (reasoningResult.answer?.trim()) return reasoningResult.answer.trim();
-      return buildNaturalFallbackReply(userInput);
+      // All AI providers failed to return content - surface clear error
+      return 'I was unable to generate a response right now. Please check that your AI API keys are configured in the `.env` file and try again.';
     } catch (error) {
       console.error('AI processing error:', error);
-      return buildNaturalFallbackReply(userInput);
+      return 'I encountered an error processing your request. Please try again in a moment.';
     }
-  }, [buildConsultantPrompt, caseStudy, consultantCaseBrief, consultantGateReady, consultantGateMissing, buildNaturalFallbackReply, captureAugmentedAIFromPayload]);
+  }, [buildConsultantPrompt, caseStudy, consultantCaseBrief, consultantGateReady, consultantGateMissing, captureAugmentedAIFromPayload]);
 
   const processWithAIStream = useCallback(async (
     userInput: string,
@@ -3388,10 +3389,10 @@ ${agentRegistry.current.toManifest()}`;
 
       if (result.answer?.trim()) return result.answer.trim();
 
-      // ── Last resort fallback ─────────────────────────────────────────────────
-      const fallback = buildNaturalFallbackReply(userInput);
-      onChunk(fallback);
-      return fallback;
+      // ── Last resort: all streaming providers failed - return clear error ──────
+      const errorMsg = 'I was unable to generate a response. Please verify your API keys (OpenAI, Together.ai, or Groq) are configured in the `.env` file and restart the dev server.';
+      onChunk(errorMsg);
+      return errorMsg;
 
     } catch (error) {
       console.warn('[processWithAIStream] Pipeline failed:', error);
@@ -3399,7 +3400,7 @@ ${agentRegistry.current.toManifest()}`;
       onChunk(fallbackText);
       return fallbackText;
     }
-  }, [buildConsultantPrompt, processWithAI, buildNaturalFallbackReply, caseStudy, consultantCaseBrief, consultantGateReady, consultantGateMissing, captureAugmentedAIFromPayload, messages]);
+  }, [buildConsultantPrompt, processWithAI, caseStudy, consultantCaseBrief, consultantGateReady, consultantGateMissing, captureAugmentedAIFromPayload, messages]);
 
   const getHighestValueFollowUp = useCallback((draft: CaseStudy) => {
     if (!draft.organizationName.trim()) return 'Which organization is the decision owner for this matter?';
@@ -5087,11 +5088,11 @@ You MUST write each section in full prose, formatted with ## headers, to the spe
 
       let fallbackContent: string;
       if (isApiKeyIssue) {
-        fallbackContent = '⚠️ **AI Service Not Configured**\n\nThe Together.ai API key is missing or invalid. To enable full AI capabilities:\n\n1. Get a free key at [api.together.xyz](https://api.together.xyz)\n2. Add it to your `.env` file as `VITE_TOGETHER_API_KEY`\n3. Restart the dev server\n\nThe system is currently using heuristic-only mode with limited capabilities.';
+        fallbackContent = '⚠️ **AI Service Not Configured**\n\nPlease configure at least one AI provider API key in your `.env` file:\n\n1. **OpenAI** (recommended): Get a key at [platform.openai.com](https://platform.openai.com) \u2192 set `VITE_OPENAI_API_KEY`\n2. **Together.ai**: Free key at [api.together.xyz](https://api.together.xyz) \u2192 set `VITE_TOGETHER_API_KEY`\n3. **Groq**: Free key at [console.groq.com](https://console.groq.com) \u2192 set `VITE_GROQ_API_KEY`\n\nRestart the dev server after adding the key.';
       } else if (isRateLimited) {
         fallbackContent = '⏳ **Rate Limit Reached**\n\nThe AI service is temporarily rate-limited. Please wait a moment and try again. Your query has been preserved.';
       } else {
-        fallbackContent = buildNaturalFallbackReply(inputValue);
+        fallbackContent = 'I encountered an error processing your request. Please try again in a moment.';
       }
       const errorMessage: Message = {
         id: crypto.randomUUID(),
@@ -5161,7 +5162,6 @@ You MUST write each section in full prose, formatted with ## headers, to the spe
     extractConsultantSignals,
     fetchLiveIntelForCountry,
     processWithAI,
-    buildNaturalFallbackReply,
     enableFullCaseTreeMatching,
     activeIssuePack.label,
     queueAction,
