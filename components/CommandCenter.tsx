@@ -379,36 +379,20 @@ const CommandCenter: React.FC<CommandCenterProps> = ({ onEnterPlatform, onOpenGl
             <section className="py-10 px-4 bg-white">
                 <div className="max-w-5xl mx-auto">
                     <h2 className="text-2xl md:text-3xl font-light mb-6 text-slate-900">The Story of Regional Cities</h2>
-                    <div className="grid md:grid-cols-2 gap-x-8 text-base text-slate-700 leading-relaxed text-justify mb-8">
-                        <div className="space-y-3">
-                            <p>
-                                Regional cities are not secondary economies. They carry national supply chains, food systems, energy corridors, logistics routes, tourism, and workforce growth that keep national and global markets moving.
-                            </p>
-                            <p>
-                                Yet they are often misunderstood as peripheral markets &mdash; high on potential, low on visibility. Capital tends to flow to familiar metros while regional opportunities are under-scored, under-financed, or evaluated with models built for entirely different contexts.
-                            </p>
-                            <p>
-                                For years, there has been no single system fully dedicated to regional development, investment, and growth across jurisdictions. Teams have had to assemble fragmented reports, consultants, and disconnected tools under time pressure.
-                            </p>
-                        </div>
-                        <div className="space-y-3 mt-3 md:mt-0">
-                            <p>
-                                The pattern is consistent: <strong>every &ldquo;new idea&rdquo; is old somewhere.</strong> Across SEZs, PPPs, growth corridors, and sector strategies, the underlying principles repeat. <strong>The past is the solution library.</strong>
-                            </p>
-                            <p>
-                                That gap is why BWGA Ai exists. <strong>BWGA Ai is BWGA&rsquo;s technology platform</strong> &mdash; a digital boardroom purpose-built for regional decision-making, applying institutional-grade reasoning to investment, trade, and development without the normal time and cost barrier.
-                            </p>
-                            <p>
-                                It combines structured intake, multi-layer analysis, and document-grade output so mayors, agencies, founders, and boards can move from uncertainty to execution-ready direction with confidence.
-                            </p>
-                        </div>
+                    <div className="space-y-4 text-base text-slate-700 leading-relaxed text-justify mb-8">
+                        <p>
+                            Regional cities are not secondary economies. They carry national supply chains, food systems, energy corridors, logistics routes, and workforce growth that keep countries running &mdash; yet capital flows to familiar metros while regional opportunities are under-scored, under-financed, or evaluated with models built for entirely different contexts.
+                        </p>
+                        <p>
+                            For years, there has been no single system dedicated to regional investment, development, and growth across jurisdictions. Teams assemble fragmented reports, hire disconnected consultants, and work under time pressure with tools that were never designed for the decisions they are actually making.
+                        </p>
+                        <p>
+                            The pattern is consistent: <strong>every &ldquo;new idea&rdquo; is old somewhere.</strong> Across SEZs, PPPs, growth corridors, and sector strategies, the underlying principles repeat. <strong>The past is the solution library.</strong> But no system existed to extract those principles and apply them at scale &mdash; until now.
+                        </p>
+                        <p>
+                            BWGA Ai is a digital boardroom purpose-built for regional decision-making. It applies institutional-grade reasoning to investment, trade, and development &mdash; combining structured intake, multi-layer analysis, and document-grade output so mayors, agencies, founders, and boards can move from uncertainty to execution-ready direction with confidence. It doesn&rsquo;t copy other places &mdash; it extracts transferable principles and applies them to your context, producing evidence-linked recommendations that are easier to defend, fund, and execute.
+                        </p>
                     </div>
-                    <p className="text-base text-slate-700 leading-relaxed text-justify mb-8">
-                        We built the bridge by turning proven playbooks into one usable system dedicated to regional growth. BWGA Ai doesn&rsquo;t copy other places &mdash; it extracts transferable principles (sequencing, stakeholder architecture, policy triggers, and execution conditions) and applies them to your context. The result is clear, defensible output from first question to boardroom-ready decision support.
-                    </p>
-                    <p className="text-base text-slate-700 leading-relaxed text-justify mb-8">
-                        In practice, that means evidence-linked recommendations, clearer risk visibility, and faster alignment between public and private stakeholders &mdash; so regional decisions are not only smarter, but easier to defend, fund, and execute.
-                    </p>
 
                     {/* Personal Story  -  Brayden Walls */}
                     <div className="relative rounded-sm overflow-hidden mb-8 shadow-lg border-2 border-slate-300">
