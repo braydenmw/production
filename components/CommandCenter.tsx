@@ -382,12 +382,18 @@ const CommandCenter: React.FC<CommandCenterProps> = ({ onEnterPlatform, onOpenGl
                         The Engine Rooms of Nations &mdash;<br />Overlooked by the Tools Built to Serve Them
                     </h2>
 
-                    <div className="space-y-6 text-lg text-slate-700 leading-relaxed mb-14">
+                    <div className="space-y-6 text-lg text-slate-700 leading-relaxed mb-14 max-w-4xl mx-auto">
                         <p>
-                            Capital flows to familiar places. If you&rsquo;re building, investing, or governing outside a major metro, the tools weren&rsquo;t made for you &mdash; and the consultants who were cost six figures and take six months. The same decisions that get institutional-grade support in London or New York get fragmented reports, disconnected advice, and guesswork everywhere else.
+                            Regional cities generate the majority of global GDP. They anchor national supply chains, house the workforce, and hold the infrastructure that keeps economies running. Yet capital still flows to the same handful of megacities &mdash; not because regional markets lack value, but because the world still uses the wrong lens to see them.
                         </p>
                         <p>
-                            Every &ldquo;new idea&rdquo; is old somewhere. SEZs, PPPs, growth corridors, sector strategies &mdash; the underlying principles repeat across jurisdictions. <strong className="text-slate-900">The past is the solution library.</strong> But no system existed to extract those principles and apply them at scale &mdash; until now.
+                            Investors follow legacy assumptions. Global datasets focus on capitals and tier-one hubs. Regional cities rarely appear in investment dashboards or risk models &mdash; so they never enter the field of vision. If it&rsquo;s not measured, it&rsquo;s not valued. The wealth is there &mdash; human capital, industrial capacity, strategic geography &mdash; but it doesn&rsquo;t fit the frameworks built for tech hubs and financial centers.
+                        </p>
+                        <p>
+                            The missing factor is <strong className="text-slate-900">contextual intelligence</strong>: a way to understand local industry structure, governance capacity, infrastructure readiness, and cross-border linkages &mdash; not through generic metrics designed for megacities, but through analysis built for the places that actually need it.
+                        </p>
+                        <p>
+                            The answers already exist &mdash; they&rsquo;re just scattered across different places, different projects, different decades. What worked in one region can work in another, but until now there was no way to find those patterns, connect them, and apply them at scale. <strong className="text-slate-900">The past is the solution library.</strong> We built the system to unlock it.
                         </p>
                     </div>
 
@@ -421,15 +427,15 @@ const CommandCenter: React.FC<CommandCenterProps> = ({ onEnterPlatform, onOpenGl
                 {/* Subtle background texture */}
                 <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-blue-50/40 via-transparent to-transparent" />
                 <div className="relative max-w-5xl mx-auto">
-                    <h2 className="text-3xl md:text-4xl font-bold text-center leading-tight mb-4 text-slate-900">
+                    <h2 className="text-3xl md:text-4xl font-bold text-center leading-tight mb-6 text-slate-900">
                         One System. Zero Compromise.
                     </h2>
-                    <div className="grid md:grid-cols-2 gap-8 mb-12">
-                        <p className="text-base md:text-lg font-light text-slate-600 text-justify">
-                            The tools weren&rsquo;t built for you. Fund managers, trade agencies, and development banks still assemble fragmented reports from disconnected consultants &mdash; each working with different data, different frameworks, and no shared memory of what was learned last time. ChatGPT gives fluent guesses. Bloomberg covers major markets. Consulting firms charge six figures and take six months. None of them verify entities against live registries. None of them score Papua New Guinea with the same formula they use for the United States.
+                    <div className="space-y-6 mb-12 max-w-4xl mx-auto">
+                        <p className="text-base md:text-lg font-light text-slate-600 leading-relaxed">
+                            Everyone&rsquo;s using AI now. No one&rsquo;s questioning what it says. The grammar is perfect. The answer sounds confident. So people accept it &mdash; without a second opinion, without stress testing, without anyone pushing back on whether the conclusion actually holds.
                         </p>
-                        <p className="text-base md:text-lg font-light text-slate-600 text-justify">
-                            General-purpose AI gives you one model, one pass, one perspective. It doesn&rsquo;t know who you are. It doesn&rsquo;t verify what it tells you. It treats every region the same way it treats silence &mdash; with a guess. None of them remember what you told them yesterday. <strong className="text-slate-800">This system was engineered from scratch to fix every one of those gaps.</strong>
+                        <p className="text-base md:text-lg font-light text-slate-600 leading-relaxed">
+                            This system was built with that challenge embedded. Multiple engines debate each other before a conclusion reaches you. It stress tests assumptions, flags contradictions, runs adversarial review &mdash; and delivers answers that survived an argument. <strong className="text-slate-800">Not just an answer. A defensible position.</strong>
                         </p>
                     </div>
                     <div id="brain" className="relative -top-28" />
