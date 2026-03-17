@@ -702,17 +702,17 @@ const CommandCenter: React.FC<CommandCenterProps> = ({ onEnterPlatform, onOpenGl
                             </div>
                             <div className="p-6 md:p-8">
                                 <p className="text-base text-slate-700 leading-relaxed text-justify mb-6">
-                                    You leave with a <strong>complete operating position</strong>-not a pitch deck requiring interpretation, but a defensible strategy with pre-mapped objection responses, stakeholder-specific messaging, and sequenced next steps. BW Ai compresses what typically requires <strong>six months of advisory engagement</strong> into outputs ready for board presentations, investor conversations, regulator submissions, and partnership negotiations on day one.
+                                    You leave with a <strong>complete operating position</strong> &mdash; not a pitch deck requiring interpretation, but a defensible strategy built from live evidence, adversarial challenge, confidence scoring, and sequenced execution logic. BWGA AI compresses what typically requires months of fragmented advisory work into outputs ready for board presentations, investor conversations, regulator submissions, stakeholder engagement, and partnership negotiation on day one.
                                 </p>
 
-                                {/* Reflexive Intelligence */}
+                                {/* Updated Capability Framing */}
                                 <div className="border-t border-slate-200 pt-6 mb-6">
-                                    <h3 className="text-lg font-bold text-slate-900 mb-3">Reflexive Intelligence: Analyzing You</h3>
+                                    <h3 className="text-lg font-bold text-slate-900 mb-3">Institutional Intelligence, Not Generic AI Output</h3>
                                     <p className="text-sm text-slate-700 leading-relaxed text-justify mb-3">
-                                        Most systems only analyze external conditions. BW Ai also analyzes decision posture. <strong>Signal Decoder:</strong> Detects recurring priorities and strategic fixation points. <strong>Latent Advantage Miner:</strong> Surfaces underused assets hidden in narrative context. <strong>Constraint Mapper:</strong> Identifies unspoken barriers, risk assumptions, and execution friction. <strong>Universal Translator:</strong> Reframes conclusions for investors, governments, communities, partners, and executive teams.
+                                        The system does more than generate a recommendation. It builds a persistent case file, runs five adversarial reasoning engines, validates claims against live registries and market intelligence, stress-tests scenarios across policy, financing, partner, and market volatility, and marks every material claim as proven, assumed, or unknown. What emerges is a position that can survive scrutiny, not a response that depends on trust alone.
                                     </p>
                                     <p className="text-sm text-slate-700 leading-relaxed text-justify">
-                                        <strong>Case Study Intelligence:</strong> Upload any case study, report, proposal, or mandate &mdash; the full text is read, broken into structured sections, and scored on governance quality, financial viability, evidence strength, risk management, and replication potential. Five adversarial personas debate the findings. Historical parallel matching surfaces precedents from 10+ countries. You receive a strength/weakness diagnostic with severity levels, specific recommendations, and a list of documents and letters ready to generate from the analysis.
+                                        It also reads the user, the mandate, and the evidence environment at the same time. Reflexive engines identify recurring priorities, hidden assets, unspoken constraints, and decision friction. Case Study Intelligence ingests reports, proposals, mandates, and prior deal material, converts them into structured sections, scores them across governance, financial viability, evidence strength, and replication potential, and debates the findings across adversarial perspectives. The output is then translated into board-ready briefs, submissions, letters, and stakeholder-specific messaging grounded in the actual case rather than template language.
                                     </p>
                                 </div>
 
