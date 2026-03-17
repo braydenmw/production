@@ -471,13 +471,13 @@ const CommandCenter: React.FC<CommandCenterProps> = ({ onEnterPlatform, onOpenGl
                         {/* CARD 2: What We Built + Breakthrough Feature */}
                         <div className="group bg-white border border-slate-200 overflow-hidden shadow-sm hover:shadow-lg transition-shadow flex flex-col">
                             {/* Short banner photo at top */}
-                            <div className="h-48 w-full relative overflow-hidden flex-shrink-0">
+                            <div className="h-56 w-full relative overflow-hidden flex-shrink-0">
                                 <img
-                                    src="https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=1600&h=400&fit=crop&q=80"
+                                    src="https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=2200&h=720&q=90"
                                     alt="Regional city infrastructure and economic corridor"
-                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                    className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500 saturate-110 contrast-110"
                                 />
-                                <div className="absolute inset-0 bg-gradient-to-t from-white/60 to-transparent" />
+                                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/10 via-transparent to-transparent" />
                             </div>
 
                             {/* Text Content — full width */}
