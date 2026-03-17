@@ -1244,11 +1244,20 @@ export class BrainIntegrationService {
     if (ctx.indices) {
       lines.push(`Overall: ${ctx.indices.composite.overallScore}/100 | Risk-adj: ${ctx.indices.composite.riskAdjustedScore}/100`);
     }
+    if (ctx.researchEcosystem) {
+      lines.push(
+        `Research Ecosystem: ERS ${ctx.researchEcosystem.ecosystemReadinessScore}/100 ` +
+        `(TAI ${ctx.researchEcosystem.talentAttractivenessIndex} | ICI ${ctx.researchEcosystem.innovationConversionIndex})`
+      );
+    }
     if (ctx.adversarial) {
       lines.push(`Personas: ${ctx.adversarial.agreementLevel}% agreement | ${ctx.adversarial.topRisks.length} risk signals`);
     }
     if (ctx.historicalPatterns.length) {
       lines.push(`History: ${ctx.historicalPatterns.length} matching patterns`);
+    }
+    if (ctx.qualityGate) {
+      lines.push(`Quality Gate: ${ctx.qualityGate.score}/100 (${ctx.qualityGate.decision})`);
     }
     return lines.join(' · ');
   }
