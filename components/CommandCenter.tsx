@@ -371,18 +371,16 @@ const CommandCenter: React.FC<CommandCenterProps> = ({ onEnterPlatform, onOpenGl
 
                             {/* Founder statement — blue panel */}
                             <div className="bg-blue-700 rounded-sm p-6">
-                                <p className="text-xs font-bold text-blue-300 uppercase tracking-widest mb-4">A Note From the Founder</p>
-                                <p className="text-base text-white leading-relaxed mb-6">
-                                    I grew up watching regional communities absorb economic shocks that better-resourced places never would have had to face — not because of bad decisions, but because of bad tools. No regional council should lose a decade of investment potential because their city doesn&rsquo;t appear in a model built for somewhere else.
-                                </p>
-                                <p className="text-base text-blue-100 leading-relaxed mb-6">
-                                    This system exists because the world&rsquo;s most important economies — the ones feeding, moving, and manufacturing everything we depend on — deserve the same standard of intelligence that has always been reserved for the capitals that overlook them.
-                                </p>
-                                <div className="border-t border-blue-500 pt-5">
-                                    <p className="text-sm text-blue-50 italic leading-relaxed mb-3">
-                                        &ldquo;Every region that succeeded left a blueprint. Every region that stalled left a lesson. The system reads both &mdash; so yours doesn&rsquo;t have to start from zero.&rdquo;
+                                <p className="text-xs font-bold text-blue-300 uppercase tracking-widest mb-4">Regional Focus</p>
+                                <div className="overflow-hidden rounded-sm border border-blue-500/60 bg-blue-800">
+                                    <img
+                                        src="https://images.unsplash.com/photo-1513828583688-c52646db42da?w=1200&h=800&fit=crop&q=80"
+                                        alt="Regional city and surrounding development landscape"
+                                        className="w-full h-56 object-cover"
+                                    />
+                                    <p className="px-3 py-2 text-xs text-blue-100 leading-relaxed">
+                                        Regional cities and corridors are where logistics, industry, workforce, and infrastructure converge to drive national growth.
                                     </p>
-                                    <p className="text-blue-300 text-sm font-semibold">&mdash; Brayden Walls, Founder</p>
                                 </div>
                             </div>
                         </div>
@@ -546,7 +544,11 @@ const CommandCenter: React.FC<CommandCenterProps> = ({ onEnterPlatform, onOpenGl
                             
                             {/* Photo (RIGHT) */}
                             <div className="h-64 md:h-auto md:w-1/3 flex-shrink-0 relative overflow-hidden">
-                                <img src="https://images.unsplash.com/photo-1677442136019-21780ecad995?w=800&h=600&fit=crop&q=80" alt="AI reasoning and neural networks" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                <img
+                                    src="https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=1200&h=900&fit=crop&q=80"
+                                    alt="Regional city infrastructure and economic corridor"
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                />
                             </div>
                         </div>
 
