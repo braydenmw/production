@@ -21,24 +21,10 @@ const AdvancedReportGenerator = lazy(() => import('./components/AdvancedReportGe
 const ExecutiveSummaryGenerator = lazy(() => import('./components/ExecutiveSummaryGenerator'));
 const LettersCatalogModal = lazy(() => import('./components/LettersCatalogModal'));
 import useEscapeKey from './hooks/useEscapeKey';
-import { generateCopilotInsights, generateReportSectionStream } from './services/geminiService';
-import { config } from './services/config';
-import { ReportOrchestrator } from './services/ReportOrchestrator';
-import { ConsultantGateService } from './services/ConsultantGateService';
-// ETHICAL GATE & DOCUMENT INTEGRITY
-import { DocumentIntegrityService } from './services/DocumentIntegrityService';
-// AUTONOMOUS CAPABILITIES IMPORTS
-import { solveAndAct as autonomousSolve } from './services/autonomousClient';
-import { selfLearningEngine } from './services/selfLearningEngine';
-import { ReactiveIntelligenceEngine } from './services/ReactiveIntelligenceEngine';
-import { runSmartAgenticWorker, AgenticRun, runFullyAutonomousAgenticWorker } from './services/agenticWorker';
-// Automatic Search and Consultant AI
-import { automaticSearchService } from './services/AutomaticSearchService';
-import { bwConsultantAI, type ConsultantInsight } from './services/BWConsultantAgenticAI';
+import type { AgenticRun } from './services/agenticWorker';
+import type { ConsultantInsight } from './services/BWConsultantAgenticAI';
 // EventBus for ecosystem connectivity
 import { EventBus, type EcosystemPulse } from './services/EventBus';
-import { ReportsService } from './services/ReportsService';
-import { initAutonomousRuntime } from './services/autonomousRuntime';
 // Location intelligence types
 import { type CityProfile } from './data/globalLocationProfiles';
 import { type LocationResult } from './services/geminiLocationService';
@@ -72,6 +58,7 @@ const App: React.FC = () => {
     useEffect(() => {
         const loadReports = async () => {
             try {
+                const { ReportsService } = await import('./services/ReportsService');
                 const reports = await ReportsService.list();
                 setSavedReports(reports);
             } catch (error) {
@@ -82,7 +69,12 @@ const App: React.FC = () => {
     }, []);
 
     // Bootstrap autonomous runtime services once on mount
-    useEffect(() => { initAutonomousRuntime(); }, []);
+    useEffect(() => {
+        void (async () => {
+            const { initAutonomousRuntime } = await import('./services/autonomousRuntime');
+            initAutonomousRuntime();
+        })();
+    }, []);
 
     // Generation State
     const [insights, setInsights] = useState<CopilotInsight[]>([]);
@@ -205,9 +197,16 @@ const App: React.FC = () => {
         console.log("DEBUG: Copilot useEffect triggered", { viewMode, orgName: params.organizationName, country: params.country, insightsLength: insights.length });
         const timer = setTimeout(async () => {
           // STRICT CHECK: Do not run if fields are empty
-                    if (config.useRealAI && (viewMode === 'report-generator') && params.organizationName && params.country && params.organizationName.length > 2 && insights.length === 0) {
+          if ((viewMode === 'report-generator') && params.organizationName && params.country && params.organizationName.length > 2 && insights.length === 0) {
             console.log("DEBUG: Starting copilot generation");
             try {
+              const [{ generateCopilotInsights }, { config }] = await Promise.all([
+                import('./services/geminiService'),
+                import('./services/config')
+              ]);
+              if (!config.useRealAI) {
+                return;
+              }
               const newInsights = await generateCopilotInsights(params);
               console.log("DEBUG: Copilot insights generated:", newInsights.length);
               setInsights(newInsights);
@@ -230,6 +229,7 @@ const App: React.FC = () => {
                 console.log(" AGENTIC WORKER: Starting autonomous digital worker");
                 setIsAutonomousThinking(true);
                 try {
+                    const { runSmartAgenticWorker } = await import('./services/agenticWorker');
                     // Run the full agentic pipeline (tools + memory + payload)
                     const agenticResult: AgenticRun = await runSmartAgenticWorker(params, { maxSimilarCases: 5 });
 
@@ -248,6 +248,7 @@ const App: React.FC = () => {
                     console.error(" AGENTIC WORKER: Error running digital worker:", error);
                     // Fallback to legacy autonomous solve
                     try {
+                        const { solveAndAct: autonomousSolve } = await import('./services/autonomousClient');
                         const problem = `Analyze partnership and investment opportunities for ${params.organizationName} in ${params.country}`;
                         const context = {
                             region: params.country,
@@ -286,6 +287,10 @@ const App: React.FC = () => {
             const timer = setTimeout(async () => {
                 console.log(' BW Consultant: Analyzing current parameters for insights');
                 try {
+                    const [{ bwConsultantAI }, { automaticSearchService }] = await Promise.all([
+                        import('./services/BWConsultantAgenticAI'),
+                        import('./services/AutomaticSearchService')
+                    ]);
                     const insights = await bwConsultantAI.consult(params, 'parameter_analysis');
                     setConsultantInsights(insights);
 
@@ -305,35 +310,38 @@ const App: React.FC = () => {
     useEffect(() => {
         if (genPhase === 'complete' && params.id) {
             console.log(" SELF-LEARNING: Recording performance data");
-            try {
-                // Calculate performance metrics
-                const startTime = Date.now() - (genProgress * 1000); // Estimate based on progress
-                const generationTime = Date.now() - startTime;
+            void (async () => {
+                try {
+                    const { selfLearningEngine } = await import('./services/selfLearningEngine');
+                    // Calculate performance metrics
+                    const startTime = Date.now() - (genProgress * 1000); // Estimate based on progress
+                    const generationTime = Date.now() - startTime;
 
-                selfLearningEngine.recordTest({
-                    timestamp: new Date().toISOString(),
-                    testId: params.id,
-                    scenario: 'report_generation',
-                    inputs: params,
-                    outputs: {
-                        spiScore: params.opportunityScore?.totalScore,
-                        rroiScore: params.opportunityScore?.marketPotential,
-                        reportQuality: 85, // Could be user-rated
-                        generationTime: generationTime
-                    },
-                    feedback: {
-                        successful: true,
-                        errors: [],
-                        warnings: [],
-                        suggestions: autonomousSuggestions
-                    },
-                    improvements: ['Enhanced autonomous analysis', 'Improved insight generation']
-                });
+                    selfLearningEngine.recordTest({
+                        timestamp: new Date().toISOString(),
+                        testId: params.id,
+                        scenario: 'report_generation',
+                        inputs: params,
+                        outputs: {
+                            spiScore: params.opportunityScore?.totalScore,
+                            rroiScore: params.opportunityScore?.marketPotential,
+                            reportQuality: 85, // Could be user-rated
+                            generationTime: generationTime
+                        },
+                        feedback: {
+                            successful: true,
+                            errors: [],
+                            warnings: [],
+                            suggestions: autonomousSuggestions
+                        },
+                        improvements: ['Enhanced autonomous analysis', 'Improved insight generation']
+                    });
 
-                console.log(" SELF-LEARNING: Performance data recorded");
-            } catch (error) {
-                console.error(" SELF-LEARNING: Error recording data:", error);
-            }
+                    console.log(" SELF-LEARNING: Performance data recorded");
+                } catch (error) {
+                    console.error(" SELF-LEARNING: Error recording data:", error);
+                }
+            })();
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [genPhase, params.id, genProgress, autonomousSuggestions]);
@@ -344,6 +352,7 @@ const App: React.FC = () => {
             const interval = setInterval(async () => {
                 try {
                     console.log(" PROACTIVE: Checking for new opportunities");
+                    const { ReactiveIntelligenceEngine } = await import('./services/ReactiveIntelligenceEngine');
                     const opportunities = await ReactiveIntelligenceEngine.thinkAndAct(
                         `Monitor for new opportunities related to ${params.organizationName} in ${params.country || 'target markets'}`,
                         params,
@@ -411,6 +420,7 @@ const App: React.FC = () => {
     const deleteReport = async (id: string) => {
         setSavedReports(prev => prev.filter(r => r.id !== id));
         try {
+            const { ReportsService } = await import('./services/ReportsService');
             await ReportsService.delete(id);
         } catch (error) {
             console.error('Failed to delete report via API', error);
@@ -418,6 +428,20 @@ const App: React.FC = () => {
     };
 
     const handleGenerateReport = useCallback(async () => {
+        const [
+            { ConsultantGateService },
+            { ReportOrchestrator },
+            { DocumentIntegrityService },
+            { generateReportSectionStream },
+            { ReportsService }
+        ] = await Promise.all([
+            import('./services/ConsultantGateService'),
+            import('./services/ReportOrchestrator'),
+            import('./services/DocumentIntegrityService'),
+            import('./services/geminiService'),
+            import('./services/ReportsService')
+        ]);
+
         const consultantGate = ConsultantGateService.evaluate(params);
         if (!consultantGate.isReady) {
             setReportData(prev => ({
@@ -578,6 +602,7 @@ const App: React.FC = () => {
     const runFullyAutonomousSystem = useCallback(async () => {
         setIsFullyAutonomous(true);
         try {
+            const { runFullyAutonomousAgenticWorker } = await import('./services/agenticWorker');
             console.log(' FULLY AUTONOMOUS SYSTEM: Starting self-thinking analysis');
 
             const result = await runFullyAutonomousAgenticWorker(params, {

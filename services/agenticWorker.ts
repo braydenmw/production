@@ -1,9 +1,9 @@
 import type { ReportParameters, ReportPayload, CopilotInsight } from '../types';
 import { ReportOrchestrator } from './ReportOrchestrator';
-import { 
-  optimizedAgenticBrain, 
-  type AgenticBrainResult 
-} from './algorithms';
+import {
+  optimizedAgenticBrain,
+  type AgenticBrainResult
+} from './algorithms/OptimizedAgenticBrain';
 import { EventBus, type ExecutiveBrief, type MemoryCase } from './EventBus';
 
 type SimilarCase = {
