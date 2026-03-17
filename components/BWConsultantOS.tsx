@@ -2979,6 +2979,8 @@ const BWConsultantOS: React.FC<BWConsultantOSProps> = ({ onOpenWorkspace, onNavi
           '',
           'I\'m your BW Consultant - think of me as a senior advisor in your corner. I help leaders like you navigate complex opportunities with clarity and confidence.',
           '',
+          'As we talk, the system verifies and refines information in real time. You may see a fast first response, then a corrected version a moment later as checks complete. That is intentional: speed first, then validation.',
+          '',
           'Whether you\'re exploring a new market, evaluating a partnership, approaching government, or structuring an investment - you don\'t need to have everything figured out before we start.',
           '',
           'Just tell me what you\'re working on, and we\'ll build your case together.'
