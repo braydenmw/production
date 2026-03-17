@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState } from 'react';
 import { ArrowRight, Shield, Users, Zap, CheckCircle2, Scale, Building2, Globe, Mail, Phone, Briefcase, TrendingUp, FileCheck, GitBranch, X, Info } from 'lucide-react';
 import DocumentModal, { type DocumentType } from './LegalDocuments';
 // OSINT search removed - using unified location research
@@ -36,7 +36,6 @@ const CommandCenter: React.FC<CommandCenterProps> = ({ onEnterPlatform, onOpenGl
     const [unifiedActiveTab, setUnifiedActiveTab] = useState<'protocol' | 'documents' | 'letters' | 'proof'>('protocol');
     const [activeDocument, setActiveDocument] = useState<DocumentType>(null);
     const [_activeLayer, _setActiveLayer] = useState<number | null>(null);
-    const [expandedPersona, setExpandedPersona] = useState<string | null>(null);
     const [expandedEngine, setExpandedEngine] = useState<string | null>(null);
     const [_expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
     const _toggleCard = (id: string) => setExpandedCards(prev => {
