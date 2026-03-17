@@ -61,6 +61,8 @@ export default defineConfig(({ mode }) => {
                 return undefined;
               }
 
+              const inPkg = (pkgs: string[]) => pkgs.some((pkg) => id.includes(pkg));
+
               if (id.includes('/react/') || id.includes('/react-dom/') || id.includes('/scheduler/')) {
                 return 'vendor-react';
               }
@@ -73,12 +75,48 @@ export default defineConfig(({ mode }) => {
                 return 'vendor-charts';
               }
 
-              if (id.includes('/@google/generative-ai/') || id.includes('/openai/')) {
+              if (inPkg(['/@google/generative-ai/', '/@google/genai/', '/openai/'])) {
                 return 'vendor-ai';
               }
 
-              if (id.includes('/pdf-lib/') || id.includes('/jspdf/') || id.includes('/html2canvas/')) {
-                return 'vendor-docs';
+              if (inPkg(['/pdfjs-dist/'])) {
+                return 'vendor-pdfjs';
+              }
+
+              if (inPkg(['/docx/'])) {
+                return 'vendor-docx';
+              }
+
+              if (inPkg(['/jspdf/', '/html2canvas/'])) {
+                return 'vendor-jspdf';
+              }
+
+              if (inPkg(['/pdf-lib/'])) {
+                return 'vendor-pdflib';
+              }
+
+              if (inPkg(['/react-icons/'])) {
+                return 'vendor-icons';
+              }
+
+              if (inPkg(['/@aws-sdk/', '/@smithy/'])) {
+                return 'vendor-aws';
+              }
+
+              if (inPkg(['/leaflet/', '/react-leaflet/'])) {
+                return 'vendor-maps';
+              }
+
+              if (inPkg(['/react-markdown/'])) {
+                return 'vendor-markdown';
+              }
+
+              if (inPkg(['/mathjs/'])) {
+                return 'vendor-math';
+              }
+
+              if (inPkg(['/axios/', '/uuid/'])) {
+                return 'vendor-data';
               }
 
               return 'vendor-misc';
