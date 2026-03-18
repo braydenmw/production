@@ -7,17 +7,23 @@
  * preserved for backward compatibility with existing imports.
  *
  * Primary: Together.ai (Llama 3.1 70B-Instruct-Turbo)
- * Key:     VITE_TOGETHER_API_KEY in .env
+ * Key:     TOGETHER_API_KEY on the server backend
  */
 
 import LiveDataService from './LiveDataService';
+import { config } from './config';
 
-const API_BASE = (import.meta as { env?: Record<string, string> })?.env?.VITE_API_BASE_URL || '';
+type AwsWindowEnv = Window & { __ENV__?: Record<string, string | undefined> };
+type AwsImportMeta = ImportMeta & { env?: { MODE?: string; PROD?: boolean; VITE_AWS_REGION?: string } };
+
+const runtimeEnv = typeof window !== 'undefined' ? (window as AwsWindowEnv).__ENV__ || {} : {};
+const viteEnv = ((import.meta as AwsImportMeta).env || {});
+const API_BASE = config.apiBaseUrl.replace(/\/api$/, '');
 
 // ─── Together.ai config ────────────────────────────────────────────────────────
 const TOGETHER_API_URL = 'https://api.together.xyz/v1/chat/completions';
-const TOGETHER_MODEL   = (import.meta as ImportMeta & { env?: Record<string, string> }).env?.VITE_TOGETHER_MODEL || 'meta-llama/Llama-3.1-70B-Instruct-Turbo';
-const _TOGETHER_KEY    = () => (import.meta as ImportMeta & { env?: Record<string, string> }).env?.VITE_TOGETHER_API_KEY || '';
+const TOGETHER_MODEL   = 'meta-llama/Llama-3.1-70B-Instruct-Turbo';
+const _TOGETHER_KEY    = () => (typeof process !== 'undefined' ? process.env?.TOGETHER_API_KEY || '' : '');
 
 /**
  * Core Together.ai call - supports streaming and non-streaming.
@@ -46,8 +52,8 @@ async function invokeTogetherAI(
     } catch { /* fall through to direct */ }
   }
 
-  // Direct Together.ai (browser → API)
-  if (!key) throw new Error('VITE_TOGETHER_API_KEY not set in .env - add it and restart dev server');
+  // Direct Together.ai (server-backed only)
+  if (!key) throw new Error('TOGETHER_API_KEY not configured on the server backend.');
 
   const body = JSON.stringify({
     model: TOGETHER_MODEL,
@@ -114,17 +120,13 @@ export interface ResearchProgress {
 // ==================== ENVIRONMENT DETECTION ====================
 
 export const isAWSEnvironment = (): boolean => {
-  // Check Vite environment variables first (for browser)
+  // Check public browser env first
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const meta = import.meta as any;
-    if (meta?.env?.VITE_AWS_ENVIRONMENT === 'true') {
+    if (runtimeEnv.VITE_AWS_ENVIRONMENT === 'true') {
       return true;
     }
-    // If we're in production mode on a real deployment
-    if (meta?.env?.PROD && meta?.env?.MODE === 'production') {
-      // Check if we have AWS indicators
-      if (meta?.env?.VITE_AWS_REGION) {
+    if (viteEnv.PROD && viteEnv.MODE === 'production') {
+      if (runtimeEnv.VITE_AWS_REGION || viteEnv.VITE_AWS_REGION) {
         return true;
       }
     }
@@ -608,7 +610,7 @@ export default {
 };
 
 // ==================== DIRECT BROWSER → TOGETHER AI ====================
-// Reads VITE_TOGETHER_API_KEY from .env
+// Reads TOGETHER_API_KEY from the server environment when available
 
 export const isDirectBedrockConfigured = (): boolean => {
   const key = _TOGETHER_KEY();

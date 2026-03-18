@@ -29,7 +29,6 @@ const MAX_CHUNK_CHARS = 6000; // ~1500 tokens safe margin for 8K model
 
 function getAPIKey(): string {
   const key =
-    (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_TOGETHER_API_KEY) ||
     (typeof process !== 'undefined' && process.env?.TOGETHER_API_KEY) ||
     '';
   const lower = key.toLowerCase();

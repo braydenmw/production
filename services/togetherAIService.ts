@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * ═══════════════════════════════════════════════════════════════════════════════
  * BW NEXUS AI - TOGETHER AI SERVICE
@@ -7,8 +6,7 @@
  * Open-source LLM backend via Together.ai API.
  * Model: meta-llama/Llama-3.1-70B-Instruct-Turbo (default)
  *
- * Set VITE_TOGETHER_API_KEY in .env (browser) and
- *     TOGETHER_API_KEY in .env (server) to activate.
+ * Configure TOGETHER_API_KEY on the server backend to activate.
  *
  * All AI calls previously using AWS Bedrock now route here.
  * The awsBedrockService.ts exports are preserved as aliases.
@@ -64,7 +62,6 @@ export interface TogetherOptions {
 export function isTogetherAvailable(): boolean {
   if (isCircuitOpen()) return false;
   const key = (
-    (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_TOGETHER_API_KEY) ||
     (typeof process !== 'undefined' && process.env?.TOGETHER_API_KEY) ||
     ''
   );
@@ -94,7 +91,6 @@ export async function callTogether(
   }
 
   const key =
-    (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_TOGETHER_API_KEY) ||
     (typeof process !== 'undefined' && process.env?.TOGETHER_API_KEY) ||
     '';
 
@@ -105,8 +101,8 @@ export async function callTogether(
       '\n\n=== BW NEXUS AI - API KEY REQUIRED ===\n\n' +
       'No valid Together.ai API key found.\n\n' +
       '1. Get a FREE key at: https://api.together.xyz\n' +
-      '2. Open .env and set: VITE_TOGETHER_API_KEY=<your-real-key>\n' +
-      '3. Restart the dev server (npm run dev)\n\n' +
+      '2. Open .env and set: TOGETHER_API_KEY=<your-real-key>\n' +
+      '3. Restart the backend server\n\n' +
       'The system will fully activate once a real key is present.\n'
     );
   }

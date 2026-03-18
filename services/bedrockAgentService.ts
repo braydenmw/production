@@ -32,7 +32,28 @@ import { generateWithTogether, TOGETHER_SYSTEM_PROMPT } from './togetherAIServic
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
-const _env = () => (import.meta as any).env ?? {};
+type BedrockWindowEnv = Window & { __ENV__?: Record<string, string | undefined> };
+type BedrockImportMeta = ImportMeta & {
+  env?: {
+    VITE_AWS_REGION?: string;
+    VITE_AWS_ACCESS_KEY_ID?: string;
+    VITE_AWS_SECRET_ACCESS_KEY?: string;
+    VITE_BEDROCK_AGENT_ID?: string;
+    VITE_BEDROCK_AGENT_ALIAS_ID?: string;
+  };
+};
+
+const _env = () => {
+  const runtimeEnv = typeof window !== 'undefined' ? (window as BedrockWindowEnv).__ENV__ || {} : {};
+  const viteEnv = ((import.meta as BedrockImportMeta).env || {});
+  return {
+    VITE_AWS_REGION: runtimeEnv.VITE_AWS_REGION || viteEnv.VITE_AWS_REGION,
+    VITE_AWS_ACCESS_KEY_ID: runtimeEnv.VITE_AWS_ACCESS_KEY_ID || viteEnv.VITE_AWS_ACCESS_KEY_ID,
+    VITE_AWS_SECRET_ACCESS_KEY: runtimeEnv.VITE_AWS_SECRET_ACCESS_KEY || viteEnv.VITE_AWS_SECRET_ACCESS_KEY,
+    VITE_BEDROCK_AGENT_ID: runtimeEnv.VITE_BEDROCK_AGENT_ID || viteEnv.VITE_BEDROCK_AGENT_ID,
+    VITE_BEDROCK_AGENT_ALIAS_ID: runtimeEnv.VITE_BEDROCK_AGENT_ALIAS_ID || viteEnv.VITE_BEDROCK_AGENT_ALIAS_ID,
+  };
+};
 
 const cfg = {
   region:      () => _env().VITE_AWS_REGION          || 'us-east-1',

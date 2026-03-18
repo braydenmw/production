@@ -61,7 +61,7 @@ async function isServerAvailable(): Promise<boolean> {
 
 function hasTavilyKey(): boolean {
   try {
-    const key = (import.meta as any).env?.VITE_TAVILY_API_KEY || '';
+    const key = import.meta.env.VITE_TAVILY_API_KEY || '';
     return key.length > 10 && !key.includes('your-');
   } catch {
     return false;

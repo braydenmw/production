@@ -21,9 +21,7 @@ import { type CityProfile, type CityLeader } from '../data/globalLocationProfile
 // Debug flag for deep research
 const RESEARCH_DEBUG = ((): boolean => {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const m = import.meta as any;
-    return Boolean(m?.env?.VITE_DEBUG_RESEARCH === 'true');
+    return Boolean(import.meta.env.VITE_DEBUG_RESEARCH === 'true');
   } catch {
     return false;
   }

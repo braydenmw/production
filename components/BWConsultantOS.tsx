@@ -5355,7 +5355,7 @@ SOURCE ATTRIBUTION: End the document with a "Sources & Methodology" section that
 
       let fallbackContent: string;
       if (isApiKeyIssue) {
-        fallbackContent = '⚠️ **AI Service Not Configured**\n\nPlease configure at least one AI provider API key in your `.env` file:\n\n1. **OpenAI** (recommended): Get a key at [platform.openai.com](https://platform.openai.com) \u2192 set `VITE_OPENAI_API_KEY`\n2. **Together.ai**: Free key at [api.together.xyz](https://api.together.xyz) \u2192 set `VITE_TOGETHER_API_KEY`\n3. **Groq**: Free key at [console.groq.com](https://console.groq.com) \u2192 set `VITE_GROQ_API_KEY`\n\nRestart the dev server after adding the key.';
+        fallbackContent = '⚠️ **AI Service Not Configured**\n\nConfigure at least one server-side AI provider key in your `.env` file:\n\n1. **OpenAI**: set `OPENAI_API_KEY`\n2. **Together.ai**: set `TOGETHER_API_KEY`\n3. **Groq**: set `GROQ_API_KEY`\n\nThen restart the server so the backend API can use the provider.';
       } else if (isRateLimited) {
         fallbackContent = '⏳ **Rate Limit Reached**\n\nThe AI service is temporarily rate-limited. Please wait a moment and try again. Your query has been preserved.';
       } else {
@@ -6434,7 +6434,25 @@ SOURCE ATTRIBUTION: End the document with a "Sources & Methodology" section that
 
     const env = (() => {
       try {
-        return (import.meta as unknown as { env?: Record<string, unknown> }).env ?? {};
+        const runtimeEnv = typeof window !== 'undefined'
+          ? ((window as unknown as Window & { __ENV__?: Record<string, unknown> }).__ENV__ || {})
+          : {};
+        const viteEnv = ((import.meta as ImportMeta & {
+          env?: {
+            VITE_CONSULTANT_HEALTHY_MIN_SUCCESS?: unknown;
+            VITE_CONSULTANT_WARNING_MIN_SUCCESS?: unknown;
+            VITE_CONSULTANT_FALLBACK_HIGH_RATIO?: unknown;
+            VITE_CONSULTANT_ERROR_HIGH_RATIO?: unknown;
+            VITE_CONSULTANT_WARNING_MAX_ERROR_RATIO?: unknown;
+          };
+        }).env || {});
+        return {
+          VITE_CONSULTANT_HEALTHY_MIN_SUCCESS: runtimeEnv.VITE_CONSULTANT_HEALTHY_MIN_SUCCESS ?? viteEnv.VITE_CONSULTANT_HEALTHY_MIN_SUCCESS,
+          VITE_CONSULTANT_WARNING_MIN_SUCCESS: runtimeEnv.VITE_CONSULTANT_WARNING_MIN_SUCCESS ?? viteEnv.VITE_CONSULTANT_WARNING_MIN_SUCCESS,
+          VITE_CONSULTANT_FALLBACK_HIGH_RATIO: runtimeEnv.VITE_CONSULTANT_FALLBACK_HIGH_RATIO ?? viteEnv.VITE_CONSULTANT_FALLBACK_HIGH_RATIO,
+          VITE_CONSULTANT_ERROR_HIGH_RATIO: runtimeEnv.VITE_CONSULTANT_ERROR_HIGH_RATIO ?? viteEnv.VITE_CONSULTANT_ERROR_HIGH_RATIO,
+          VITE_CONSULTANT_WARNING_MAX_ERROR_RATIO: runtimeEnv.VITE_CONSULTANT_WARNING_MAX_ERROR_RATIO ?? viteEnv.VITE_CONSULTANT_WARNING_MAX_ERROR_RATIO,
+        };
       } catch {
         return {} as Record<string, unknown>;
       }

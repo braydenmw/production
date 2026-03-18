@@ -61,10 +61,7 @@ const marineLimiter = new RateLimiter(2, 60_000);
 
 export function isExternalDataEnabled(): boolean {
   try {
-    // Vite / frontend check
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const meta = (import.meta as any);
-    if (meta?.env?.VITE_ENABLE_EXTERNAL_DATA === 'true') return true;
+    if (import.meta.env.VITE_ENABLE_EXTERNAL_DATA === 'true') return true;
   } catch {
     // ignore
   }
@@ -93,9 +90,7 @@ export async function fetchNumbeoCityData(cityName: string): Promise<NumbeoCityD
 
   try {
     // Requires API key (VITE_NUMBEO_API_KEY or NUMBEO_API_KEY)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const meta = (import.meta as any);
-    const key = meta?.env?.VITE_NUMBEO_API_KEY || process.env?.NUMBEO_API_KEY;
+    const key = import.meta.env.VITE_NUMBEO_API_KEY || process.env?.NUMBEO_API_KEY;
     if (!key) {
       // No API key available - return null (no mock data)
       console.log(`[External] Numbeo: No API key configured for ${cityName}. Skipping.`);

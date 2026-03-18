@@ -37,9 +37,7 @@ import { narrativeSynthesisEngine, type EnhancedNarratives } from './narrativeSy
 // Debug flag: enable verbose research logging via VITE_DEBUG_RESEARCH=true
 const RESEARCH_DEBUG = ((): boolean => {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const m = import.meta as any;
-    return Boolean(m?.env?.VITE_DEBUG_RESEARCH === 'true');
+    return Boolean(import.meta.env.VITE_DEBUG_RESEARCH === 'true');
   } catch {
     return false;
   }
@@ -3193,9 +3191,7 @@ async function buildComprehensiveProfile(
 
   // External enrichment: World Bank / Numbeo if enabled via options flag
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const meta = (import.meta as any);
-    const externalEnabled = meta?.env?.VITE_ENABLE_EXTERNAL_DATA === 'true';
+    const externalEnabled = import.meta.env.VITE_ENABLE_EXTERNAL_DATA === 'true';
     if (externalEnabled) {
       const ext = await import('./externalDataIntegrations');
       const wb = await ext.fetchWorldBankCountryIndicators(countryCode);

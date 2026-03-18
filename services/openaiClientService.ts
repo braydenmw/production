@@ -9,13 +9,14 @@
  * in ReasoningPipeline and MultiModelRouter.
  */
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const OPENAI_API_KEY = (import.meta as any).env?.VITE_OPENAI_API_KEY || '';
-const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
 export const OPENAI_DEFAULT_MODEL = 'gpt-4o';
 export const OPENAI_FAST_MODEL = 'gpt-4o-mini';
 
 import { monitoringService } from './MonitoringService';
+import { config } from './config';
+
+const OPENAI_API_URL = `${config.apiBaseUrl}/ai/openai`;
+const LOCATION_INTELLIGENCE_URL = `${config.apiBaseUrl}/search/location-intelligence`;
 
 export interface OpenAIChatMessage {
   role: 'system' | 'user' | 'assistant';
@@ -31,9 +32,7 @@ export interface OpenAIChatOptions {
 
 /** Returns true if a valid OpenAI API key is configured. */
 export function isOpenAIAvailable(): boolean {
-  if (!OPENAI_API_KEY || OPENAI_API_KEY.length < 20) return false;
-  const lower = OPENAI_API_KEY.toLowerCase();
-  return !(lower.includes('your-') || lower.includes('your_') || lower.includes('key-here') || lower.includes('placeholder'));
+  return config.useRealBackend && typeof fetch !== 'undefined';
 }
 
 /**
@@ -46,29 +45,25 @@ export async function callOpenAIChat(
   onToken?: (token: string) => void
 ): Promise<string> {
   if (!isOpenAIAvailable()) {
-    throw new Error('OpenAI API key not configured. Add VITE_OPENAI_API_KEY to your .env file.');
+    throw new Error('OpenAI is only available through the backend API. Enable the backend and configure OPENAI_API_KEY on the server.');
   }
 
   const modelUsed = options.model ?? OPENAI_DEFAULT_MODEL;
   const callStart = performance.now();
-
-  const body = JSON.stringify({
-    model: modelUsed,
-    messages,
-    max_tokens: options.maxTokens ?? 4096,
-    temperature: options.temperature ?? 0.4,
-    stream: Boolean(onToken),
-  });
 
   let res: Response;
   try {
     res = await fetch(OPENAI_API_URL, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
         'Content-Type': 'application/json',
       },
-      body,
+      body: JSON.stringify({
+        model: modelUsed,
+        messages,
+        temperature: options.temperature ?? 0.4,
+        maxTokens: options.maxTokens ?? 4096,
+      }),
     });
   } catch (err) {
     monitoringService.trackAICall({
@@ -107,30 +102,13 @@ export async function callOpenAIChat(
       inputTokens: data.usage?.prompt_tokens,
       outputTokens: data.usage?.completion_tokens,
     });
-    return data.choices?.[0]?.message?.content || '';
+    return data.text || data.response || '';
   }
 
-  // ── SSE streaming ──
-  const reader = res.body?.getReader();
-  if (!reader) throw new Error('No stream body from OpenAI');
-
-  const dec = new TextDecoder();
-  let full = '', buf = '';
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buf += dec.decode(value, { stream: true });
-    const lines = buf.split('\n');
-    buf = lines.pop() || '';
-    for (const line of lines) {
-      const trimmed = line.replace(/^data:\s*/, '').trim();
-      if (!trimmed || trimmed === '[DONE]') continue;
-      try {
-        const tok = JSON.parse(trimmed).choices?.[0]?.delta?.content || '';
-        if (tok) { full += tok; onToken(tok); }
-      } catch { /* partial chunk */ }
-    }
+  const data = await res.json();
+  const full = data.text || data.response || '';
+  if (full) {
+    onToken(full);
   }
   monitoringService.trackAICall({
     timestamp: new Date().toISOString(),
@@ -205,20 +183,19 @@ export interface LocationIntelligence {
  * Call OpenAI API directly from browser
  */
 export async function callOpenAI(prompt: string, model = 'gpt-4-turbo-preview'): Promise<OpenAIResponse> {
-  if (!OPENAI_API_KEY) {
-    throw new Error('OpenAI API key not configured. Add VITE_OPENAI_API_KEY to your .env file.');
+  if (!isOpenAIAvailable()) {
+    throw new Error('OpenAI is only available through the backend API. Enable the backend and configure OPENAI_API_KEY on the server.');
   }
 
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+  const response = await fetch(OPENAI_API_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${OPENAI_API_KEY}`,
     },
     body: JSON.stringify({
-      model: model,
-      messages: [{ role: 'user', content: prompt }],
-      max_tokens: 4000,
+      model,
+      prompt,
+      maxTokens: 4000,
       temperature: 0.3,
     }),
   });
@@ -230,7 +207,7 @@ export async function callOpenAI(prompt: string, model = 'gpt-4-turbo-preview'):
 
   const data = await response.json();
   return {
-    content: data.choices[0]?.message?.content || '',
+    content: data.text || data.response || '',
     usage: data.usage,
     model: data.model,
   };
@@ -240,71 +217,23 @@ export async function callOpenAI(prompt: string, model = 'gpt-4-turbo-preview'):
  * Generate comprehensive location intelligence using OpenAI
  */
 export async function generateLocationIntelligence(location: string): Promise<LocationIntelligence> {
-  const prompt = `You are a world-class intelligence analyst. Provide comprehensive, factual intelligence about: "${location}"
-
-Return a detailed JSON response with REAL, CURRENT data (not placeholders). The JSON should include:
-
-{
-  "overview": {
-    "displayName": "Official name",
-    "significance": "Strategic importance and key facts",
-    "established": "Foundation date or historical context"
-  },
-  "demographics": {
-    "population": "Current population with latest available data",
-    "populationGrowth": "Annual growth rate percentage",
-    "medianAge": "Median age in years",
-    "literacyRate": "Literacy rate percentage",
-    "languages": ["Primary languages spoken"]
-  },
-  "economy": {
-    "gdp": "GDP with latest figure and currency",
-    "gdpGrowth": "Latest GDP growth rate",
-    "unemployment": "Current unemployment rate",
-    "averageIncome": "Average income per capita",
-    "mainIndustries": ["Top industries"],
-    "tradePartners": ["Major trading partners"],
-    "currency": "Official currency"
-  },
-  "government": {
-    "leader": {
-      "name": "Current head of government/state",
-      "title": "Official title",
-      "since": "When they took office"
-    },
-    "departments": ["Key government ministries/departments"],
-    "type": "Government system (democracy, monarchy, etc.)"
-  },
-  "geography": {
-    "climate": "Climate description",
-    "area": "Total area with unit",
-    "timezone": "Timezone(s)"
-  },
-  "infrastructure": {
-    "powerCapacity": "Electricity capacity if available",
-    "internetPenetration": "Internet access percentage",
-    "airports": ["Major airports"],
-    "seaports": ["Major seaports"]
-  },
-  "competitiveAdvantages": ["Key competitive advantages for business/investment"],
-  "investment": {
-    "incentives": ["Investment incentives offered"],
-    "easeOfBusiness": "Ease of doing business ranking or description"
-  }
-}
-
-IMPORTANT: Use only factual, verifiable information. No placeholders like "N/A" or "Data not available". If information is uncertain, provide best available data with context. Return ONLY valid JSON.`;
-
   try {
-    const response = await callOpenAI(prompt);
+    const response = await fetch(LOCATION_INTELLIGENCE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ location }),
+    });
 
-    // Extract JSON from response
-    const jsonMatch = response.content.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error('No JSON found in OpenAI response');
+    if (!response.ok) {
+      const error = await response.text().catch(() => '');
+      throw new Error(`Location intelligence API error: ${response.status} - ${error}`);
     }
 
-    const intelligence = JSON.parse(jsonMatch[0]) as LocationIntelligence;
+    const payload = await response.json();
+    const intelligence = payload?.aiIntelligence as LocationIntelligence | undefined;
+    if (!intelligence) {
+      throw new Error('Location intelligence payload missing aiIntelligence');
+    }
 
     // Validate required fields and provide fallbacks if needed
     return {

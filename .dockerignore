@@ -1,0 +1,11 @@
+.env
+.env.*
+node_modules
+dist
+dist-server
+server/data
+npm-debug.log*
+build_output.txt
+build_error.txt
+build_result.txt
+test-results

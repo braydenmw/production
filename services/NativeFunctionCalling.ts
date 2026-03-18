@@ -276,7 +276,6 @@ async function fallbackTextParsing(
 function getApiKey(): string {
   try {
     const key =
-      ((typeof import.meta !== 'undefined') && (import.meta as any).env?.VITE_TOGETHER_API_KEY) ||
       ((typeof process !== 'undefined') && process.env?.TOGETHER_API_KEY) ||
       '';
     if (key.length < 20 || key.toLowerCase().includes('your-')) return '';

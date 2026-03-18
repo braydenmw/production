@@ -7,8 +7,8 @@
 # This allows API keys to be set as runtime environment variables in AWS
 # ECS/Fargate/App Runner/Elastic Beanstalk without rebuilding the Docker image.
 #
-# Variables injected: VITE_GEMINI_API_KEY, VITE_AWS_ENVIRONMENT,
-#                     VITE_AWS_REGION, VITE_API_BASE_URL
+# Variables injected: VITE_AWS_ENVIRONMENT, VITE_AWS_REGION,
+#                     VITE_API_BASE_URL
 #
 # SECURITY WARNING: Variables injected here are publicly visible in the browser.
 # Do NOT expose secret server-side credentials via this mechanism.
@@ -24,12 +24,6 @@ fi
 
 # --- Build the window.__ENV__ JSON object from available environment variables ---
 JSON_CONTENT=""
-
-# Prefer VITE_GEMINI_API_KEY; fall back to GEMINI_API_KEY for compatibility.
-API_KEY="${VITE_GEMINI_API_KEY:-$GEMINI_API_KEY}"
-if [ -n "$API_KEY" ]; then
-  JSON_CONTENT="${JSON_CONTENT}\"VITE_GEMINI_API_KEY\":\"${API_KEY}\","
-fi
 
 if [ -n "$VITE_AWS_ENVIRONMENT" ]; then
   JSON_CONTENT="${JSON_CONTENT}\"VITE_AWS_ENVIRONMENT\":\"${VITE_AWS_ENVIRONMENT}\","

@@ -9,6 +9,7 @@ version: '3.8'
 x-common-env: &common-env
   NODE_ENV: production
   PORT: 3001
+  DATABASE_URL: ${DATABASE_URL:-postgres://postgres:postgres@postgres:5432/bw_nexus_ai}
   GEMINI_API_KEY: ${GEMINI_API_KEY}
   OPENAI_API_KEY: ${OPENAI_API_KEY}
   ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
@@ -41,6 +42,8 @@ services:
     environment:
       <<: *common-env
     depends_on:
+      postgres:
+        condition: service_healthy
       redis:
         condition: service_healthy
     restart: unless-stopped
@@ -75,6 +78,23 @@ services:
       timeout: 5s
       retries: 3
 
+  postgres:
+    image: pgvector/pgvector:pg16
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-bw_nexus_ai}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-bw_nexus_ai}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # ── Nginx reverse proxy (SSL termination + rate limiting) ─────────────────
   # nginx:
   #   image: nginx:alpine
@@ -89,6 +109,7 @@ services:
   #   restart: unless-stopped
 
 volumes:
+  postgres_data:
   redis_data:
 
 # ── Usage notes ──────────────────────────────────────────────────────────────

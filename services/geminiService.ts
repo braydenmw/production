@@ -38,7 +38,7 @@ async function apiPost(path: string, body: object): Promise<any> {
 
 /** Check if a REAL Together.ai API key is present (rejects placeholders) */
 function isTogetherConfigured(): boolean {
-  const key = (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_TOGETHER_API_KEY) || '';
+  const key = (typeof process !== 'undefined' && process.env?.TOGETHER_API_KEY) || '';
   if (key.length < 20) return false;
   const lower = key.toLowerCase();
   if (lower.includes('your-') || lower.includes('your_') || lower.includes('placeholder') || lower.includes('key-here')) return false;
@@ -56,7 +56,7 @@ async function ai(prompt: string, system = SYSTEM_INSTRUCTION): Promise<string> 
   if (isDirectBedrockConfigured()) {
     return invokeBedrockDirect(prompt, system);
   }
-  throw new Error('No AI provider configured. Add VITE_TOGETHER_API_KEY to .env.');
+  throw new Error('No AI provider configured. Configure TOGETHER_API_KEY on the server backend.');
 }
 
 /**

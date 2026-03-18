@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * ═══════════════════════════════════════════════════════════════════
  * Brave Search API - Independent Web Search
@@ -32,7 +31,7 @@ export interface BraveSearchResponse {
 
 function getBraveKey(): string {
   try {
-    return (import.meta as any).env?.VITE_BRAVE_SEARCH_API_KEY || '';
+    return import.meta.env.VITE_BRAVE_SEARCH_API_KEY || '';
   } catch {
     return '';
   }

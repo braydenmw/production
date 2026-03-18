@@ -59,7 +59,6 @@ export interface GroqOptions {
 
 function getGroqKey(): string {
   return (
-    (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_GROQ_API_KEY) ||
     (typeof process !== 'undefined' && process.env?.GROQ_API_KEY) ||
     ''
   );

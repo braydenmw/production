@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * ═══════════════════════════════════════════════════════════════════════════════
  * BW NEXUS AI - UNIFIED AI GATEWAY
@@ -324,7 +323,7 @@ async function callBrain(
 }
 
 async function callServerFallback(prompt: string, system: string): Promise<string> {
-  const API_BASE = (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_API_BASE_URL) || '';
+  const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
   const res = await fetch(`${API_BASE}/api/ai/generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

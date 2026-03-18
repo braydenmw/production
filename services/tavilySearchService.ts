@@ -37,7 +37,7 @@ export async function tavilyDeepSearch(
     excludeDomains?: string[];
   } = {}
 ): Promise<TavilySearchResponse | null> {
-  const apiKey = (typeof import.meta !== 'undefined' ? (import.meta as unknown as Record<string, Record<string, string>>).env?.VITE_TAVILY_API_KEY : undefined) || '';
+  const apiKey = import.meta.env.VITE_TAVILY_API_KEY || '';
   if (!apiKey) return null;
   if (!query || query.trim().length < 5) return null;
 

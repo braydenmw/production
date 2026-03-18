@@ -12,7 +12,7 @@
 
 import { type CityProfile } from '../data/globalLocationProfiles';
 
-const API_BASE = (import.meta as { env?: Record<string, string> })?.env?.VITE_API_BASE_URL || '';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 
 // ==================== TYPES ====================
 

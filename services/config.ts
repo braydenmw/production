@@ -1,9 +1,40 @@
 ﻿// Feature flags and configuration for demo/production modes
 // V6.0 - Nexus Intelligence OS - ALL LIVE DATA BY DEFAULT
-// Uses import.meta.env.VITE_* (Vite) with process.env fallback (SSR / tests)
-type ImportMetaWithEnv = ImportMeta & { env?: Record<string, string | boolean | undefined> };
-const _env = (key: string, fallback = ''): string =>
-  String((import.meta as ImportMetaWithEnv).env?.[key] ?? '') ||
+// Uses an explicit public env allowlist so secret VITE_* values are not
+// accidentally pulled into the browser bundle.
+type PublicEnv = Partial<Record<
+  'VITE_USE_REAL_AI' |
+  'VITE_USE_REAL_DATA' |
+  'VITE_USE_REAL_BACKEND' |
+  'VITE_SHOW_DEMO_INDICATORS' |
+  'VITE_ENABLE_ANALYTICS' |
+  'VITE_ENABLE_AUTH' |
+  'VITE_API_BASE_URL' |
+  'NODE_ENV' |
+  'DEV' |
+  'PROD',
+  string | boolean | undefined
+>>;
+
+type WindowWithEnv = Window & { __ENV__?: Record<string, string | undefined> };
+
+const publicImportMetaEnv: PublicEnv = {
+  VITE_USE_REAL_AI: import.meta.env.VITE_USE_REAL_AI,
+  VITE_USE_REAL_DATA: import.meta.env.VITE_USE_REAL_DATA,
+  VITE_USE_REAL_BACKEND: import.meta.env.VITE_USE_REAL_BACKEND,
+  VITE_SHOW_DEMO_INDICATORS: import.meta.env.VITE_SHOW_DEMO_INDICATORS,
+  VITE_ENABLE_ANALYTICS: import.meta.env.VITE_ENABLE_ANALYTICS,
+  VITE_ENABLE_AUTH: import.meta.env.VITE_ENABLE_AUTH,
+  VITE_API_BASE_URL: import.meta.env.VITE_API_BASE_URL,
+  NODE_ENV: import.meta.env.MODE,
+  DEV: import.meta.env.DEV,
+  PROD: import.meta.env.PROD,
+};
+
+const runtimeEnv = typeof window !== 'undefined' ? (window as WindowWithEnv).__ENV__ || {} : {};
+
+const _env = (key: keyof PublicEnv, fallback = ''): string =>
+  String(runtimeEnv[key as string] ?? publicImportMetaEnv[key] ?? '') ||
   (typeof process !== 'undefined' ? process.env?.[key] ?? '' : '') ||
   fallback;
 
@@ -22,8 +53,8 @@ export const config = {
   apiBaseUrl: _env('VITE_API_BASE_URL', 'http://localhost:3001/api'),
 
   // Development flags
-  isDevelopment: _env('NODE_ENV') === 'development' || Boolean((import.meta as ImportMetaWithEnv).env?.DEV),
-  isProduction:  _env('NODE_ENV') === 'production'  || Boolean((import.meta as ImportMetaWithEnv).env?.PROD),
+  isDevelopment: _env('NODE_ENV') === 'development' || Boolean(publicImportMetaEnv.DEV),
+  isProduction:  _env('NODE_ENV') === 'production'  || Boolean(publicImportMetaEnv.PROD),
   
   // Multi-Agent Brain System v6.0 (Nexus Intelligence OS)
   enableMultiAgent: true,

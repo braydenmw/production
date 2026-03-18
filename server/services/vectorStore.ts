@@ -1,6 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { withPostgres } from './postgres.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, '..', 'data', 'memory');
@@ -48,6 +49,19 @@ async function loadDocuments(): Promise<StoredVectorDocument[]> {
 async function saveDocuments(documents: StoredVectorDocument[]): Promise<void> {
   await ensureDataDir();
   await fs.writeFile(VECTOR_FILE, JSON.stringify(documents, null, 2), 'utf-8');
+}
+
+function normalizeDocument(row: Record<string, unknown>): StoredVectorDocument {
+  return {
+    id: String(row.id || ''),
+    text: String(row.text_content || row.text || ''),
+    source: String(row.source || 'unknown'),
+    metadata: typeof row.metadata === 'object' && row.metadata !== null ? row.metadata as Record<string, unknown> : {},
+    embedding: Array.isArray(row.embedding) ? row.embedding.map((value) => Number(value) || 0) : [],
+    embeddingModel: String(row.embedding_model || row.embeddingModel || HASH_EMBEDDING_MODEL),
+    createdAt: new Date(String(row.created_at || row.createdAt || new Date().toISOString())).toISOString(),
+    updatedAt: new Date(String(row.updated_at || row.updatedAt || new Date().toISOString())).toISOString(),
+  };
 }
 
 function sanitizeText(input: unknown, maxLength = 20000): string {
@@ -168,6 +182,48 @@ class ServerVectorStore {
       documents.splice(0, documents.length - 5000);
     }
 
+    const savedToDb = await withPostgres(async (client) => {
+      await client.query(
+        `
+          INSERT INTO memory_vectors (id, text_content, source, metadata, embedding, embedding_model, created_at, updated_at)
+          VALUES ($1, $2, $3, $4::jsonb, $5::jsonb, $6, $7::timestamptz, $8::timestamptz)
+          ON CONFLICT (id) DO UPDATE SET
+            text_content = EXCLUDED.text_content,
+            source = EXCLUDED.source,
+            metadata = EXCLUDED.metadata,
+            embedding = EXCLUDED.embedding,
+            embedding_model = EXCLUDED.embedding_model,
+            updated_at = EXCLUDED.updated_at
+        `,
+        [
+          record.id,
+          record.text,
+          record.source,
+          JSON.stringify(record.metadata || {}),
+          JSON.stringify(record.embedding),
+          record.embeddingModel,
+          record.createdAt,
+          record.updatedAt,
+        ]
+      );
+
+      await client.query(`
+        DELETE FROM memory_vectors
+        WHERE id IN (
+          SELECT id
+          FROM memory_vectors
+          ORDER BY updated_at DESC
+          OFFSET 5000
+        )
+      `);
+
+      return true;
+    });
+
+    if (savedToDb) {
+      return record;
+    }
+
     await saveDocuments(documents);
     return record;
   }
@@ -179,7 +235,19 @@ class ServerVectorStore {
     const topK = Math.max(1, Math.min(50, options?.topK ?? 5));
     const minScore = typeof options?.minScore === 'number' ? options.minScore : 0.15;
     const sourceFilter = sanitizeText(options?.source, 200);
-    const documents = await loadDocuments();
+    const documents = await withPostgres(async (client) => {
+      const result = await client.query(
+        `
+          SELECT id, text_content, source, metadata, embedding, embedding_model, created_at, updated_at
+          FROM memory_vectors
+          WHERE ($1 = '' OR source = $1)
+          ORDER BY updated_at DESC
+          LIMIT 5000
+        `,
+        [sourceFilter]
+      );
+      return result.rows.map((row) => normalizeDocument(row));
+    }) || await loadDocuments();
     const { vector: queryVector, model } = await openAIEmbedding(cleanQuery);
 
     return documents
@@ -204,6 +272,35 @@ class ServerVectorStore {
     byEmbeddingModel: Record<string, number>;
     newestDocument: string | null;
   }> {
+    const dbStats = await withPostgres(async (client) => {
+      const totals = await client.query(`
+        SELECT COUNT(*)::int AS documents, MAX(updated_at) AS newest_document
+        FROM memory_vectors
+      `);
+      const bySourceRows = await client.query(`SELECT source, COUNT(*)::int AS count FROM memory_vectors GROUP BY source`);
+      const byModelRows = await client.query(`SELECT embedding_model, COUNT(*)::int AS count FROM memory_vectors GROUP BY embedding_model`);
+
+      const bySource: Record<string, number> = {};
+      const byEmbeddingModel: Record<string, number> = {};
+      for (const row of bySourceRows.rows) {
+        bySource[String(row.source)] = Number(row.count) || 0;
+      }
+      for (const row of byModelRows.rows) {
+        byEmbeddingModel[String(row.embedding_model)] = Number(row.count) || 0;
+      }
+
+      return {
+        documents: totals.rows[0]?.documents || 0,
+        bySource,
+        byEmbeddingModel,
+        newestDocument: totals.rows[0]?.newest_document ? new Date(totals.rows[0].newest_document).toISOString() : null,
+      };
+    });
+
+    if (dbStats) {
+      return dbStats;
+    }
+
     const documents = await loadDocuments();
     const bySource: Record<string, number> = {};
     const byEmbeddingModel: Record<string, number> = {};

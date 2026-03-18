@@ -1869,7 +1869,15 @@ router.post('/tts', async (req: Request, res: Response) => {
 
 router.post('/openai', async (req: Request, res: Response) => {
   try {
-    const { prompt, context, model = 'gpt-4-turbo-preview' } = req.body;
+    const {
+      prompt,
+      context,
+      model = 'gpt-4o-mini',
+      messages,
+      temperature = 0.4,
+      maxTokens = 2000,
+      systemInstruction,
+    } = req.body;
     
     const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
     
@@ -1880,6 +1888,37 @@ router.post('/openai', async (req: Request, res: Response) => {
         fallback: true
       });
     }
+
+    const normalizedMessages = Array.isArray(messages)
+      ? messages
+          .filter((message) => message && typeof message.content === 'string' && typeof message.role === 'string')
+          .slice(-40)
+          .map((message) => ({
+            role: ['system', 'user', 'assistant'].includes(message.role) ? message.role : 'user',
+            content: String(message.content).slice(0, 16000),
+          }))
+      : [];
+
+    const requestMessages = normalizedMessages.length > 0
+      ? normalizedMessages
+      : [
+          {
+            role: 'system',
+            content: typeof systemInstruction === 'string' && systemInstruction.trim()
+              ? systemInstruction.slice(0, 12000)
+              : MULTI_AGENT_SYSTEM_INSTRUCTION,
+          },
+          {
+            role: 'user',
+            content: context
+              ? `Context: ${JSON.stringify(context)}\n\nQuery: ${String(prompt || '').slice(0, 12000)}`
+              : String(prompt || '').slice(0, 12000),
+          }
+        ];
+
+    if (requestMessages.length === 0 || !requestMessages.some((message) => message.role === 'user' || message.role === 'assistant')) {
+      return res.status(400).json({ error: 'prompt or messages are required' });
+    }
     
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -1889,20 +1928,9 @@ router.post('/openai', async (req: Request, res: Response) => {
       },
       body: JSON.stringify({
         model,
-        messages: [
-          {
-            role: 'system',
-            content: MULTI_AGENT_SYSTEM_INSTRUCTION
-          },
-          {
-            role: 'user',
-            content: context 
-              ? `Context: ${JSON.stringify(context)}\n\nQuery: ${prompt}`
-              : prompt
-          }
-        ],
-        temperature: 0.7,
-        max_tokens: 2000
+        messages: requestMessages,
+        temperature,
+        max_tokens: maxTokens
       })
     });
     
