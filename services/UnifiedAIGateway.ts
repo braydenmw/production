@@ -324,10 +324,10 @@ async function callBrain(
 
 async function callServerFallback(prompt: string, system: string): Promise<string> {
   const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
-  const res = await fetch(`${API_BASE}/api/ai/generate`, {
+  const res = await fetch(`${API_BASE}/api/ai/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt, systemInstruction: system }),
+    body: JSON.stringify({ message: prompt, systemInstruction: system }),
   });
   if (!res.ok) throw new Error(`Server returned ${res.status}`);
   const data = await res.json();

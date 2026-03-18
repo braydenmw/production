@@ -51,20 +51,59 @@ function isTogetherConfigured(): boolean {
  * Primary AI call - Together.ai (Llama 3.1 70B).
  * Falls back to Bedrock only if Together is not configured.
  */
+/**
+ * Primary AI call — routes through server /api/ai/chat.
+ * Falls back to direct Together/Bedrock only if server is unreachable.
+ */
 async function ai(prompt: string, system = SYSTEM_INSTRUCTION): Promise<string> {
+  // 1. Server backend (primary — keys live there)
+  const data = await apiPost('/ai/chat', { message: prompt, systemInstruction: system });
+  if (data?.text) return data.text;
+
+  // 2. Direct Together.ai (only works if key is somehow in process.env)
   if (isTogetherConfigured()) {
     return generateWithTogether(prompt, system);
   }
+  // 3. Direct Bedrock (only works with browser-side AWS creds)
   if (isDirectBedrockConfigured()) {
     return invokeBedrockDirect(prompt, system);
   }
-  throw new Error('No AI provider configured. Configure TOGETHER_API_KEY on the server backend.');
+  throw new Error('AI backend unavailable. Ensure the server is running and AI keys are configured in the server .env.');
 }
 
 /**
- * Streaming AI call - Together.ai (SSE). Falls back to non-streaming if needed.
+ * Streaming AI call — routes through server /api/ai/generate-stream.
+ * Falls back to direct Together/Bedrock only if server is unreachable.
  */
 async function aiStream(prompt: string, system = SYSTEM_INSTRUCTION, onToken?: (t: string) => void): Promise<string> {
+  // 1. Server backend streaming (primary)
+  try {
+    const res = await fetch(`${API_BASE}/ai/generate-stream`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt, systemInstruction: system }),
+    });
+    if (res.ok && res.body) {
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let full = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const raw = decoder.decode(value, { stream: true });
+        const lines = raw.split('\n').filter(l => l.startsWith('data: '));
+        for (const line of lines) {
+          try {
+            const chunk = JSON.parse(line.slice(6)).text || '';
+            if (chunk) { full += chunk; onToken?.(chunk); }
+          } catch { /* partial SSE chunk */ }
+        }
+      }
+      if (full) return full;
+    }
+  } catch { /* server unreachable, try direct */ }
+
+  // 2. Direct fallback (requires keys in browser env — rare)
   if (isTogetherConfigured()) {
     return callTogether(
       [{ role: 'system', content: system }, { role: 'user', content: prompt }],
@@ -77,7 +116,7 @@ async function aiStream(prompt: string, system = SYSTEM_INSTRUCTION, onToken?: (
     await invokeBedrockDirectStream(prompt, system, (tok) => { acc += tok; onToken?.(acc); });
     return acc;
   }
-  throw new Error('No AI provider configured.');
+  throw new Error('AI backend unavailable.');
 }
 
 // ─── Session tracking (kept for compat with BWConsultantOS chatSession.current) ──
