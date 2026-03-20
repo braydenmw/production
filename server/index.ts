@@ -20,7 +20,7 @@ const envPaths = [
 ];
 
 for (const envPath of envPaths) {
-  const result = dotenv.config({ path: envPath });
+  const result = dotenv.config({ path: envPath, override: true });
   if (!result.error) {
     console.log('Loaded .env from:', envPath);
     break;
@@ -196,14 +196,22 @@ app.use((req: Request, _res: Response, next: NextFunction) => {
 
 // Health check (before other routes for reliability)
 app.get('/api/health', (_req: Request, res: Response) => {
+  const hasOpenAI = Boolean(String(process.env.OPENAI_API_KEY || '').trim());
+  const hasGroq = Boolean(String(process.env.GROQ_API_KEY || '').trim());
+  const hasTogether = Boolean(String(process.env.TOGETHER_API_KEY || '').trim());
+  const aiConfigured = hasOpenAI || hasGroq || hasTogether;
+
   res.json({ 
     status: 'ok', 
     timestamp: new Date().toISOString(),
     version: '1.0.0',
     ai: {
-      configured: false,
-      available: false,
-      message: 'Add API key to .env to enable AI features'
+      configured: aiConfigured,
+      available: aiConfigured,
+      provider: hasOpenAI ? 'openai' : hasGroq ? 'groq' : hasTogether ? 'together' : null,
+      message: aiConfigured
+        ? 'AI provider configured'
+        : 'Add OPENAI_API_KEY, GROQ_API_KEY, or TOGETHER_API_KEY to enable AI features'
     }
   });
 });

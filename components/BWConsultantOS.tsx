@@ -3434,6 +3434,7 @@ ${agentRegistry.current.toManifest()}`;
         context: { phase: context, caseStudy, consultantCaseBrief, consultantGateReady, consultantGateMissing },
         systemPrompt
       });
+      let lastBackendError = '';
 
       // Try backend up to 2 times — the server handles Groq calls; client-side has no API keys
       for (let attempt = 0; attempt < 2; attempt++) {
@@ -3459,17 +3460,25 @@ ${agentRegistry.current.toManifest()}`;
             }
             console.warn(`[processWithAIStream] Backend returned OK but empty text (attempt ${attempt + 1})`);
           } else {
+            try {
+              const payload = await endpointResponse.json() as Record<string, unknown>;
+              lastBackendError = String(payload?.details || payload?.error || '').trim();
+            } catch {
+              lastBackendError = '';
+            }
             console.warn(`[processWithAIStream] Backend returned ${endpointResponse.status} (attempt ${attempt + 1})`);
           }
         } catch (err) {
           console.warn(`[processWithAIStream] Backend unavailable (attempt ${attempt + 1}):`, err);
+          lastBackendError = err instanceof Error ? err.message : String(err || '');
         }
         // Brief pause before retry
         if (attempt === 0) await new Promise<void>((r) => setTimeout(r, 1000));
       }
 
       // Both backend attempts failed — return clear error only for the primary streaming call
-      const errorMsg = 'I was unable to generate a response. Please confirm the backend server is running and your API key is configured, then try again.';
+      const backendHint = lastBackendError ? ` Details: ${lastBackendError}` : '';
+      const errorMsg = `I was unable to generate a response.${backendHint} Please confirm the backend server is running, the AI provider key is valid, and outbound network access is allowed, then try again.`;
       onChunk(errorMsg);
       return errorMsg;
 

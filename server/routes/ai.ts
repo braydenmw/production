@@ -45,6 +45,7 @@ const generateWithAI = async (messages: any[], systemInstruction?: string): Prom
   const openaiKey = getOpenAIKey();
   const groqKey = getGroqKey();
   const togetherKey = getTogetherKey();
+  const providerConfigured = Boolean(openaiKey || groqKey || togetherKey);
 
   // Prepend system instruction if provided
   const fullMessages = systemInstruction ? [{ role: 'system', content: systemInstruction }, ...messages] : messages;
@@ -132,7 +133,16 @@ const generateWithAI = async (messages: any[], systemInstruction?: string): Prom
       console.warn('[AI Routes] Together.ai failed:', togetherErr instanceof Error ? togetherErr.message : togetherErr);
     }
   }
-  throw new Error('No AI provider configured. Add OPENAI_API_KEY, GROQ_API_KEY, or TOGETHER_API_KEY in .env.');
+  console.error('[AI Routes] AI generation failed across configured providers', {
+    hasOpenAI: Boolean(openaiKey),
+    hasGroq: Boolean(groqKey),
+    hasTogether: Boolean(togetherKey),
+    groqLength: groqKey.length,
+  });
+  if (!providerConfigured) {
+    throw new Error('No AI provider configured. Add OPENAI_API_KEY, GROQ_API_KEY, or TOGETHER_API_KEY in .env.');
+  }
+  throw new Error('AI provider is configured, but upstream requests failed. Check provider key validity and outbound network access.');
 };
 // System instruction for the AI
 const SYSTEM_INSTRUCTION = `
