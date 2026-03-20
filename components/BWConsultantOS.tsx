@@ -398,7 +398,7 @@ const ThinkingOrb: React.FC = () => (
 );
 
 // ── Typewriter text component ────────────────────────────────────────────────
-const TypewriterText: React.FC<{ text: string; speed?: number; onStart?: () => void; onComplete?: () => void }> = ({ text, speed = 68, onStart, onComplete }) => {
+const TypewriterText: React.FC<{ text: string; speed?: number; onStart?: () => void; onComplete?: () => void }> = ({ text, speed = 18, onStart, onComplete }) => {
   const [displayed, setDisplayed] = React.useState('');
   const [done, setDone] = React.useState(false);
   const indexRef = React.useRef(0);
@@ -427,7 +427,7 @@ const TypewriterText: React.FC<{ text: string; speed?: number; onStart?: () => v
       if (!lastRef.current) lastRef.current = ts;
       const elapsed = ts - lastRef.current;
       if (elapsed >= speed) {
-        const chars = Math.min(Math.floor(elapsed / speed), 2);
+        const chars = Math.min(Math.floor(elapsed / speed), 5);
         const nextIdx = Math.min(indexRef.current + chars, text.length);
         indexRef.current = nextIdx;
         setDisplayed(text.slice(0, nextIdx));
@@ -3041,15 +3041,15 @@ const BWConsultantOS: React.FC<BWConsultantOSProps> = ({ onOpenWorkspace, onNavi
         id: crypto.randomUUID(),
         role: 'assistant',
         content: [
-          'Welcome - I\'m glad you\'re here.',
+          'Welcome — how can I help you today?',
           '',
-          'I\'m your BW Consultant - think of me as a senior advisor in your corner. I help leaders like you navigate complex opportunities with clarity and confidence.',
+          'I can help you with:',
+          '• Research a market, company, or opportunity',
+          '• Compare options or partnerships side by side',
+          '• Build a case study for a project you\'re working on',
+          '• Draft a professional letter or proposal',
           '',
-          'As we talk, the system verifies and refines information in real time. You may see a fast first response, then a corrected version a moment later as checks complete. That is intentional: speed first, then validation.',
-          '',
-          'Whether you\'re exploring a new market, evaluating a partnership, approaching government, or structuring an investment - you don\'t need to have everything figured out before we start.',
-          '',
-          'Just tell me what you\'re working on, and we\'ll build your case together.'
+          'Just tell me what you need and we\'ll get started.'
         ].join('\n'),
         timestamp: new Date(),
         phase: 'discovery'
@@ -7628,10 +7628,10 @@ CRITICAL RULES:
                   </p>
                   <div className="grid grid-cols-2 gap-3 max-w-lg">
                     {[
-                      { label: 'Investment Analysis', example: 'Review partnership opportunity' },
-                      { label: 'Market Entry', example: 'Expand into new region' },
-                      { label: 'Due Diligence', example: 'Assess company risk profile' },
-                      { label: 'Strategic Decision', example: 'Evaluate acquisition target' },
+                      { label: 'Research', example: 'Research a market or opportunity' },
+                      { label: 'Compare', example: 'Compare two partnership options' },
+                      { label: 'Case Study', example: 'Build a case study for my project' },
+                      { label: 'Letter / Proposal', example: 'Draft a professional letter' },
                     ].map((hint, idx) => (
                       <button
                         key={idx}
@@ -7667,7 +7667,7 @@ CRITICAL RULES:
                         )}
                         <div className={`whitespace-pre-wrap ${msg.role === 'assistant' ? 'text-[13px] leading-[1.7] text-slate-800' : ''}`}>
                           {msg.role === 'assistant' && msgIdx === messages.length - 1 && !isLoading && !displayedMsgIds.current.has(msg.id) ? (
-                            <TypewriterText text={msg.content} speed={75}
+                            <TypewriterText text={msg.content} speed={25}
                               onComplete={() => {
                                 displayedMsgIds.current.add(msg.id);
                               }}
