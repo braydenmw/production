@@ -196,10 +196,15 @@ app.use((req: Request, _res: Response, next: NextFunction) => {
 
 // Health check (before other routes for reliability)
 app.get('/api/health', (_req: Request, res: Response) => {
+  const hasBedrock = Boolean(
+    String(process.env.AWS_REGION || '').trim() ||
+    String(process.env.BEDROCK_CONSULTANT_MODEL_ID || '').trim() ||
+    String(process.env.AWS_ACCESS_KEY_ID || '').trim() ||
+    String(process.env.AWS_PROFILE || '').trim()
+  );
   const hasOpenAI = Boolean(String(process.env.OPENAI_API_KEY || '').trim());
-  const hasGroq = Boolean(String(process.env.GROQ_API_KEY || '').trim());
   const hasTogether = Boolean(String(process.env.TOGETHER_API_KEY || '').trim());
-  const aiConfigured = hasOpenAI || hasGroq || hasTogether;
+  const aiConfigured = hasBedrock || hasOpenAI || hasTogether;
 
   res.json({ 
     status: 'ok', 
@@ -208,10 +213,10 @@ app.get('/api/health', (_req: Request, res: Response) => {
     ai: {
       configured: aiConfigured,
       available: aiConfigured,
-      provider: hasOpenAI ? 'openai' : hasGroq ? 'groq' : hasTogether ? 'together' : null,
+      provider: hasBedrock ? 'bedrock' : hasOpenAI ? 'openai' : hasTogether ? 'together' : null,
       message: aiConfigured
         ? 'AI provider configured'
-        : 'Add OPENAI_API_KEY, GROQ_API_KEY, or TOGETHER_API_KEY to enable AI features'
+        : 'Add AWS Bedrock credentials (or OPENAI_API_KEY / TOGETHER_API_KEY) to enable AI features'
     }
   });
 });

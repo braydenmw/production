@@ -34,7 +34,8 @@ async function build() {
         'tls', 'tty', 'v8', 'vm', 'worker_threads', 'fs/promises',
         // Dependencies that should not be bundled
         'express', 'cors', 'helmet', 'compression', 'dotenv', 'pg',
-        '@google/generative-ai', 'jsonwebtoken', 'axios'
+        '@google/generative-ai', 'jsonwebtoken', 'axios',
+        '@aws-sdk/client-bedrock-runtime'
       ],
       sourcemap: true,
       minify: false, // Keep readable for debugging
