@@ -39,7 +39,7 @@ const getTogetherKey    = () => String(process.env.TOGETHER_API_KEY || '').trim(
 
 // ─── Groq config ───────────────────────────────────────────────────────────────
 const GROQ_API_URL  = 'https://api.groq.com/openai/v1/chat/completions';
-const GROQ_MODEL_ID = process.env.GROQ_MODEL || 'llama-3.1-70b-versatile';
+const GROQ_MODEL_ID = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
 const getGroqKey    = () => String(process.env.GROQ_API_KEY || '').trim().replace(/^['"]|['"]$/g, '');
 const BEDROCK_REGION = process.env.AWS_REGION || 'us-east-1';
 const BEDROCK_MODEL_ID = process.env.BEDROCK_CONSULTANT_MODEL_ID || 'anthropic.claude-3-5-sonnet-20241022-v2:0';
@@ -932,7 +932,8 @@ const invokeConsultantWithGroq = async (prompt: string): Promise<string> => {
   });
 
   if (!response.ok) {
-    throw new Error(`Groq request failed: ${response.status}`);
+    const errBody = await response.text().catch(() => '');
+    throw new Error(`Groq request failed: ${response.status} ${errBody}`);
   }
 
   const data2 = await response.json();
