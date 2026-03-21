@@ -418,10 +418,25 @@ const CommandCenter: React.FC<CommandCenterProps> = ({ onEnterPlatform, onOpenGl
                                     While capital chases safety, it ignores the actual engines of the economy. Regional hubs, logistics corridors, agricultural centers, and industrial heartlands&mdash;the places that absorb supply chain shocks, grow the food, move the freight, and keep nations functioning&mdash;are chronically underfunded. Not because they lack returns, but because the existing advisory models were never built to evaluate them. Trillions in locked regional value is being missed because no one built the intelligence to prove it.
                                 </p>
                                 <div className="pt-4 border-t border-slate-200">
-                                    <h5 className="text-lg font-bold text-slate-900 mb-2">The Way It Works Today is Broken</h5>
-                                    <p className="text-sm text-slate-700 leading-relaxed font-medium">
-                                        Right now, if you want to validate, fund, or build a regional project, you have to choose between two bad options. You can pay a Big Four advisory firm hundreds of thousands of dollars, wait three months, and receive a generic 100-page PDF that misses the local nuance. Or, you can try to do it yourself&mdash;spending weeks hunting through scattered government portals, stringing together outdated Excel models, and wrestling with general-purpose AI bots that hallucinate regulations and invent math. The burden of proof is entirely on you. You carry all the risk, do all the heavy lifting, and still struggle to get an equal hearing in the board room.
-                                    </p>
+                                    <h5 className="text-lg font-bold text-slate-900 mb-4">The Way It Works Today is Broken</h5>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="border-l-2 border-slate-400 pl-3">
+                                            <h5 className="text-base font-bold text-slate-900 mb-1">What Advisory Firms Use</h5>
+                                            <p className="text-sm text-slate-600">They charge hundreds of thousands of dollars to deliver a 100-page PDF three months later. They recycle macro-level tier-one data and apply generic frameworks that completely miss the local nuance of regional projects.</p>
+                                        </div>
+                                        <div className="border-l-2 border-slate-400 pl-3">
+                                            <h5 className="text-base font-bold text-slate-900 mb-1">What Governments Use</h5>
+                                            <p className="text-sm text-slate-600">They rely on scattered portals and outdated census data. Planning decisions are disjointed across departments, forcing the project sponsor to carry the entire burden of piecing together regulatory alignment.</p>
+                                        </div>
+                                        <div className="border-l-2 border-slate-400 pl-3">
+                                            <h5 className="text-base font-bold text-slate-900 mb-1">What Business & Banking Use</h5>
+                                            <p className="text-sm text-slate-600">They run backward-looking Excel models built for standard CBD assets. They arbitrarily inflate risk premiums for regions because their rigid formulas can't quantify localized logistics, workforce, or resilience.</p>
+                                        </div>
+                                        <div className="border-l-2 border-slate-400 pl-3">
+                                            <h5 className="text-base font-bold text-slate-900 mb-1">What General-Purpose AI Uses</h5>
+                                            <p className="text-sm text-slate-600">It hallucinates regulations and invents financial math. It produces simple summaries—not the defensible, traceable fiduciary logic required to survive a real boardroom tribunal.</p>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                             {/* Photo (Right) */}
