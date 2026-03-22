@@ -1216,6 +1216,26 @@ router.post('/consultant', async (req: Request, res: Response) => {
 
     const learningHint = await AdaptiveControlLearning.getHint();
     const providerAvailability = await getRuntimeProviderAvailability();
+
+    // Early-return when no AI provider is configured — return 200 so the
+    // frontend shows a helpful setup message instead of an error.
+    const noProviderAvailable =
+      !providerAvailability.bedrock &&
+      !providerAvailability.openai &&
+      !providerAvailability.groq &&
+      !providerAvailability.together;
+    if (noProviderAvailable) {
+      return res.json({
+        requestId,
+        taskType: normalizedTaskType,
+        text: `No AI provider is currently configured on this server. To activate the BW Consultant, add at least one of the following environment variables to your server and restart it:\n\n• GROQ_API_KEY — free at console.groq.com (recommended — fast and reliable)\n• OPENAI_API_KEY — platform.openai.com/api-keys\n• TOGETHER_API_KEY — api.together.xyz\n\nOnce a key is added and the server is restarted, the consultant will be fully operational.`,
+        provider: 'rule-engine',
+        attempts: [],
+        confidence: 1,
+        model: 'deterministic',
+      });
+    }
+
     const controlDecision = deriveControlDecision(
       requestEnvelope,
       {

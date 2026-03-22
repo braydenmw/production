@@ -3656,8 +3656,10 @@ ${agentRegistry.current.toManifest()}`;
       if (!lastBackendError) {
         try {
           const statusResponse = await fetch(resolveApiUrl('/api/ai/status'));
-          if (!statusResponse.ok) {
-            runtimeHint = ` AI status endpoint returned ${statusResponse.status}.`;
+          if (statusResponse.status === 404) {
+            runtimeHint = ' The backend server is not running or is not reachable at the configured URL. Start the backend with \'npm run server\' (local) or verify your deployment is running on AWS/Railway.';
+          } else if (!statusResponse.ok) {
+            runtimeHint = ` Backend returned an unexpected status (${statusResponse.status}). Check server logs for errors.`;
           } else {
             const statusPayload = await statusResponse.json() as Record<string, unknown>;
             const aiAvailable = statusPayload?.aiAvailable;
