@@ -16,6 +16,7 @@
     "build:secure": "npm run build && npm run security:scan-dist",
     "build:server": "node scripts/build-server.js",
     "build:all": "npm run build && npm run build:server",
+    "build:amplify": "node scripts/build-amplify.js",
     "start": "node dist-server/server/index.js",
     "preview": "vite preview",
     "test:nsil": "tsx scripts/nsilSimulation.ts",
@@ -54,6 +55,7 @@
     "react-leaflet": "^5.0.0",
     "react-markdown": "^10.1.0",
     "recharts": "^3.5.1",
+    "serverless-http": "^3.2.0",
     "uuid": "^10.0.0"
   },
   "devDependencies": {

@@ -27,3 +27,23 @@ frontend:
       headers:
         - key: 'Cache-Control'
           value: 'no-cache, no-store, must-revalidate'
+
+# Backend (Express API) build configuration
+backend:
+  phases:
+    build:
+      commands:
+        - echo "Building backend for AWS Lambda..."
+        - npm run build:server
+  artifacts:
+    baseDirectory: dist-server
+    files:
+      - '**/*'
+
+# Environment variables for Amplify
+# Note: Set sensitive values (API keys) in Amplify Console, not here
+env:
+  variables:
+    NODE_ENV: production
+    PORT: 3001
+    DEBUG_STATIC: 'false'
