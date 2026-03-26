@@ -42,6 +42,8 @@ const DocumentGenerationSuite = lazyWithReload(() => import('./components/Docume
 const AdvancedReportGenerator = lazyWithReload(() => import('./components/AdvancedReportGenerator'));
 const ExecutiveSummaryGenerator = lazyWithReload(() => import('./components/ExecutiveSummaryGenerator'));
 const LettersCatalogModal = lazyWithReload(() => import('./components/LettersCatalogModal'));
+const LandingPage = lazyWithReload(() => import('./components/LandingPage'));
+import Navigation from './components/Navigation';
 import useEscapeKey from './hooks/useEscapeKey';
 import type { AgenticRun } from './services/agenticWorker';
 import type { ConsultantInsight } from './services/BWConsultantAgenticAI';
@@ -63,12 +65,12 @@ const initialReportData: ReportData = {
   risks: { ...initialSection, id: 'risk', title: 'Risk Mitigation Strategy' },
 };
 
-type ViewMode = 'main' | 'user-manual' | 'command-center' | 'consultant-os' | 'report-generator' | 'global-location-intel' | 'admin' | 'intake' | 'matchmaking' | 'documents' | 'advanced-report' | 'exec-summary' | 'letters';
+type ViewMode = 'landing' | 'main' | 'user-manual' | 'command-center' | 'consultant-os' | 'report-generator' | 'global-location-intel' | 'admin' | 'intake' | 'matchmaking' | 'documents' | 'advanced-report' | 'exec-summary' | 'letters';
 
 const App: React.FC = () => {
     // --- STATE ---
     const [params, setParams] = useState<ReportParameters>(INITIAL_PARAMETERS);
-    const [viewMode, setViewMode] = useState<ViewMode>('command-center');
+    const [viewMode, setViewMode] = useState<ViewMode>('landing');
     const [savedReports, setSavedReports] = useState<ReportParameters[]>([]);
     const [pendingLocationData, setPendingLocationData] = useState<{
         profile: CityProfile;
@@ -618,6 +620,14 @@ const App: React.FC = () => {
     // --- RENDER ---
 
     const renderContent = () => {
+        if (viewMode === 'landing') {
+            return (
+                <div className="w-full h-full overflow-y-auto">
+                    <LandingPage onNavigate={(view) => setViewMode(view as ViewMode)} />
+                </div>
+            );
+        }
+
         if (viewMode === 'user-manual') {
             return (
                 <div className="w-full h-full overflow-y-auto">
@@ -816,6 +826,12 @@ const App: React.FC = () => {
     return (
         <div className="h-screen w-full bg-stone-50 font-sans text-stone-900 flex flex-col overflow-hidden">
             <ErrorBoundary>
+                {viewMode !== 'landing' && (
+                    <Navigation
+                        currentView={viewMode}
+                        onNavigate={(view) => setViewMode(view as ViewMode)}
+                    />
+                )}
                 <Suspense fallback={<div className="w-full h-full flex items-center justify-center text-sm text-stone-500">Loading workspace...</div>}>
                     {renderContent()}
                 </Suspense>
