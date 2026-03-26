@@ -1,3 +1,24 @@
+import fs from 'fs/promises';
+import path from 'path';
+
+const __dirname = (() => {
+  if (typeof window !== 'undefined') return '';
+  try {
+    const pathname = decodeURIComponent(new URL('.', import.meta.url).pathname);
+    if (process.platform === 'win32' && pathname.startsWith('/')) {
+      return path.dirname(pathname.slice(1));
+    }
+    return path.dirname(pathname);
+  } catch {
+    return '';
+  }
+})();
+
+const DATA_DIR = (__dirname && __dirname.length > 0)
+  ? path.join(__dirname, '..', '..', 'data')
+  : path.join('.', 'data');
+const ADAPTIVE_STATE_FILE = path.join(DATA_DIR, 'adaptive-learning.json');
+
 /**
  * ═══════════════════════════════════════════════════════════════════════════════
  * ADAPTIVE LEARNING ENGINE
@@ -111,6 +132,26 @@ export interface LearningReport {
 export class AdaptiveLearningEngine {
   private interactions: InteractionRecord[] = [];
   private patterns: Map<string, LearnedPattern> = new Map();
+
+  private static async callAI(prompt: string): Promise<string | null> {
+    try {
+      const base = typeof window !== 'undefined' ? '' : (process.env.VITE_API_BASE_URL || '');
+      const res = await fetch(`${base}/api/ai/consultant`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: prompt,
+          context: { phase: 'autonomous_engine' },
+          taskType: 'strategic_analysis',
+        })
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data?.text || null;
+    } catch {
+      return null;
+    }
+  }
   private beliefs: Map<string, BeliefState> = new Map();
   private ewmaAlpha: number = 0.1; // smoothing factor
   private ewmaAccuracy: number = 70; // initial estimate
@@ -160,8 +201,13 @@ export class AdaptiveLearningEngine {
    * Record an interaction and extract learning.
    * This is called on EVERY analysis the system runs.
    */
-  recordInteraction(record: Omit<InteractionRecord, 'id' | 'patternsExtracted'>): InteractionRecord {
+  async recordInteraction(record: Omit<InteractionRecord, 'id' | 'patternsExtracted'>): Promise<InteractionRecord> {
     const patternsExtracted = this.extractPatterns(record);
+
+    try {
+      const aiPrompt = `Adaptive learning interaction: type=${record.type}, country=${record.context.country}, sector=${record.context.sector}, investment=${record.context.investmentSizeM}M, scores=${JSON.stringify(record.scores)}. Suggest refinement pattern prioritization.`;
+      void AdaptiveLearningEngine.callAI(aiPrompt);
+    } catch { /* non-critical */ }
 
     const fullRecord: InteractionRecord = {
       ...record,
@@ -442,6 +488,39 @@ export class AdaptiveLearningEngine {
   getBeliefCount(): number {
     return this.beliefs.size;
   }
+
+  static async loadState(): Promise<void> {
+    try {
+      await fs.mkdir(DATA_DIR, { recursive: true });
+      const raw = await fs.readFile(ADAPTIVE_STATE_FILE, 'utf8');
+      const saved = JSON.parse(raw);
+      console.log(`[AdaptiveLearning] Loaded persisted state: ${saved.patternsLearned || 0} patterns`);
+    } catch {
+      /* no saved state */
+    }
+  }
+
+  async saveState(): Promise<void> {
+    try {
+      await fs.mkdir(DATA_DIR, { recursive: true });
+      const report = this.getReport();
+      await fs.writeFile(ADAPTIVE_STATE_FILE, JSON.stringify({
+        savedAt: new Date().toISOString(),
+        totalInteractions: report.totalInteractions,
+        patternsLearned: report.patternsLearned,
+        activePatterns: report.activePatterns,
+        accuracyTrend: report.scoreAccuracyTrend,
+        satisfactionTrend: report.userSatisfactionTrend,
+        learningVelocity: report.learningVelocity,
+        topPatterns: report.topPatterns.slice(0, 20),
+        beliefUpdates: report.beliefUpdates
+      }, null, 2), 'utf8');
+    } catch (err) {
+      console.warn('[AdaptiveLearning] Failed to save state:', err instanceof Error ? err.message : 'Unknown');
+    }
+  }
 }
 
 export const adaptiveLearningEngine = new AdaptiveLearningEngine();
+
+AdaptiveLearningEngine.loadState().catch(() => undefined);

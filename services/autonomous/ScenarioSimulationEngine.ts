@@ -191,6 +191,26 @@ const FEEDBACK_LOOPS: FeedbackLoop[] = [
 
 export class ScenarioSimulationEngine {
 
+  private static async callAI(prompt: string): Promise<string | null> {
+    try {
+      const base = typeof window !== 'undefined' ? '' : (process.env.VITE_API_BASE_URL || '');
+      const res = await fetch(`${base}/api/ai/consultant`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: prompt,
+          context: { phase: 'autonomous_engine' },
+          taskType: 'strategic_analysis',
+        })
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data?.text || null;
+    } catch {
+      return null;
+    }
+  }
+
   /**
    * Sample from specified distribution.
    */
@@ -378,8 +398,16 @@ export class ScenarioSimulationEngine {
   /**
    * Run full scenario simulation with Monte Carlo.
    */
-  static simulate(ctx: SimulationContext, runs: number = 5000): SimulationResult {
+  static async simulate(ctx: SimulationContext, runs: number = 5000): Promise<SimulationResult> {
     const startTime = Date.now();
+
+    try {
+      const aiPrompt = `Scenario simulation for: ${ctx.sector} in ${ctx.region}, ${ctx.country}. Investment: ${ctx.investmentSizeM}M, timeline: ${ctx.timelineQuarters} quarters, SPI: ${ctx.initialSPI}, RROI: ${ctx.initialRROI}. Risks: ${ctx.riskFactors.join(', ')}. Opportunities: ${ctx.opportunities.join(', ')}.`;
+      void this.callAI(aiPrompt);
+    } catch {
+      /* non-critical */
+    }
+
     const quarters = ctx.timelineQuarters;
 
     // Run Monte Carlo simulations

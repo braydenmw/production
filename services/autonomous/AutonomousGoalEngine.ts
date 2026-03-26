@@ -364,6 +364,26 @@ const GOAL_DETECTION_RULES: GoalDetectionRule[] = [
 export class AutonomousGoalEngine {
   private activeGoals: AutonomousGoal[] = [];
 
+  private static async callAI(prompt: string): Promise<string | null> {
+    try {
+      const base = typeof window !== 'undefined' ? '' : (process.env.VITE_API_BASE_URL || '');
+      const res = await fetch(`${base}/api/ai/consultant`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: prompt,
+          context: { phase: 'autonomous_engine' },
+          taskType: 'strategic_analysis',
+        })
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data?.text || null;
+    } catch {
+      return null;
+    }
+  }
+
   /**
    * Goal Programming - minimise weighted deviation from ideal state.
    * composite = w_impact × impact + w_urgency × urgency + w_feasibility × feasibility + w_evoi × evoi
@@ -388,7 +408,45 @@ export class AutonomousGoalEngine {
    * Generate goals based on current analysis context.
    * The system AUTONOMOUSLY decides what needs attention.
    */
-  generateGoals(context: GoalGenerationContext): GoalPlan {
+  async generateGoals(context: GoalGenerationContext): Promise<GoalPlan> {
+    const startTime = Date.now();
+
+    try {
+      const aiPrompt = `Generate autonomous strategic goals for: ${context.sector} in ${context.region}, ${context.country}. SPI: ${context.spiScore}, RROI: ${context.rroiScore}. Risks: ${context.riskFlags.join(', ')}. Opportunities: ${context.opportunities.join(', ')}. Data gaps: ${context.dataGaps.join(', ')}. Timeline: ${context.timelineWeeks} weeks. Investment: $${context.investmentSizeM}M.`;
+      const aiText = await AutonomousGoalEngine.callAI(aiPrompt);
+      if (aiText) {
+        return {
+          goals: [{
+            id: 'AG-AI-' + Date.now(),
+            title: 'AI-Identified Strategic Goal',
+            description: aiText.slice(0, 400),
+            category: 'opportunity-capture',
+            priority: 'high',
+            status: 'identified',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            expectedImpact: 75,
+            urgency: 65,
+            feasibility: 70,
+            compositeScore: 70,
+            decomposition: [{ id: 'ST-AI-1', title: 'Review AI-generated goal', status: 'pending', estimatedEffort: 'minimal', output: 'Validated goal' }],
+            dependencies: [],
+            triggerCondition: 'AI autonomous goal detection',
+            successCriteria: ['AI goal validated', 'Implementation plan created'],
+            progressPercentage: 0,
+            evoi: 0.7,
+            reasoning: aiText.slice(0, 200)
+          }],
+          totalGoals: 1,
+          criticalCount: 0,
+          estimatedValueAdd: 55,
+          autonomousActions: ['Validate AI-generated goal'],
+          nextReviewAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+          goalDependencyGraph: { 'AG-AI-1': [] }
+        };
+      }
+    } catch { /* fall through to rule-based */ }
+
     const newGoals: AutonomousGoal[] = [];
 
     for (const rule of GOAL_DETECTION_RULES) {

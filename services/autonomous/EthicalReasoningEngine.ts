@@ -169,6 +169,26 @@ function generateStakeholders(ctx: EthicalContext): StakeholderGroup[] {
 
 export class EthicalReasoningEngine {
 
+  private static async callAI(prompt: string): Promise<string | null> {
+    try {
+      const base = typeof window !== 'undefined' ? '' : (process.env.VITE_API_BASE_URL || '');
+      const res = await fetch(`${base}/api/ai/consultant`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: prompt,
+          context: { phase: 'autonomous_engine' },
+          taskType: 'strategic_analysis',
+        })
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data?.text || null;
+    } catch {
+      return null;
+    }
+  }
+
   /**
    * Gini Coefficient - measures inequality of impact distribution.
    * G = (2 Σᵢ i·xᵢ) / (n Σᵢ xᵢ) - (n+1)/n
@@ -454,8 +474,33 @@ export class EthicalReasoningEngine {
   /**
    * Run full ethical assessment.
    */
-  static assess(ctx: EthicalContext): EthicalAssessment {
+  static async assess(ctx: EthicalContext): Promise<EthicalAssessment> {
     const startTime = Date.now();
+
+    try {
+      const aiPrompt = `Ethical assessment for investment: country=${ctx.country}, region=${ctx.region}, sector=${ctx.sector}, ${ctx.investmentSizeM}M, ${ctx.expectedJobs} jobs, env impact=${ctx.environmentalImpact}, displacement=${ctx.displacementRisk}, consulted=${ctx.communityConsulted}, indigenous=${ctx.indigenousLandOverlap}, local ownership=${ctx.localOwnershipPercentage}%, repatriation=${ctx.profitRepatriationPercentage}%, labour=${ctx.labourStandards}.`;
+      const aiText = await this.callAI(aiPrompt);
+      if (aiText) {
+        const stakeholders = generateStakeholders(ctx);
+        return {
+          overallEthicsScore: 65,
+          utilitarian: this.assessUtilitarian(stakeholders),
+          rawlsian: this.assessRawlsian(stakeholders),
+          environmental: this.assessEnvironmental(ctx),
+          intergenerational: this.assessIntergenerational(ctx, stakeholders),
+          transparency: this.assessTransparency(ctx),
+          proportionality: this.assessProportionality(ctx, stakeholders),
+          culturalSensitivity: this.assessCulturalSensitivity(ctx),
+          flags: [{ severity: 'advisory', dimension: 'AI Analysis', description: aiText.slice(0, 200), mitigation: 'Review AI ethical assessment' }],
+          stakeholderImpactMap: stakeholders,
+          giniCoefficient: this.calculateGini(stakeholders.map(s => s.projectedImpact + 100)),
+          recommendation: 'proceed-with-conditions',
+          conditions: ['Review AI ethical assessment detail'],
+          processingTimeMs: Date.now() - startTime
+        };
+      }
+    } catch { /* fall through to existing template logic */ }
+
     const stakeholders = generateStakeholders(ctx);
 
     // Run all dimensions

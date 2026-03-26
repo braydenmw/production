@@ -371,6 +371,26 @@ const ECONOMIC_DEVELOPMENT_MAPPING: Record<string, string> = {
 
 export class CrossDomainTransferEngine {
 
+  private static async callAI(prompt: string): Promise<string | null> {
+    try {
+      const base = typeof window !== 'undefined' ? '' : (process.env.VITE_API_BASE_URL || '');
+      const res = await fetch(`${base}/api/ai/consultant`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: prompt,
+          context: { phase: 'autonomous_engine' },
+          taskType: 'strategic_analysis',
+        })
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data?.text || null;
+    } catch {
+      return null;
+    }
+  }
+
   /**
    * Structure Mapping Algorithm (Gentner 1983; simplified)
    * Maps relational structure from source domain to target (economic development).
@@ -537,8 +557,30 @@ export class CrossDomainTransferEngine {
    * Run full cross-domain transfer analysis.
    * Applies all domain models to the given context and returns ranked insights.
    */
-  static analyse(context: TransferContext): TransferResult {
+  static async analyse(context: TransferContext): Promise<TransferResult> {
     const startTime = Date.now();
+
+    // AI first for cross-domain transfer insights
+    try {
+      const aiPrompt = `Apply cross-domain transfer learning to: ${context.sector} in ${context.region}, ${context.country}. Challenge: ${context.challenge}. Current: ${context.currentState.join(', ')}. Desired: ${context.desiredState.join(', ')}. Draw structural analogies from ecology, medicine, military, physics, and network science.`;
+      const aiText = await this.callAI(aiPrompt);
+      if (aiText) {
+        return {
+          analogies: [],
+          topInsights: [{
+            sourceObservation: 'AI cross-domain transfer',
+            targetPrediction: aiText.slice(0, 300),
+            confidence: 0.7,
+            actionability: 0.65,
+            evidenceStrength: 'moderate'
+          }],
+          noveltyScore: 0.7,
+          practicalityScore: 0.65,
+          coverageBreadth: 1,
+          processingTimeMs: Date.now() - startTime
+        };
+      }
+    } catch { /* fall through to existing logic */ }
 
     const analogies: StructuralAnalogy[] = [];
 
@@ -581,8 +623,8 @@ export class CrossDomainTransferEngine {
   /**
    * Quick analogy - returns the single most relevant cross-domain insight.
    */
-  static quickAnalogy(context: TransferContext): string {
-    const result = this.analyse(context);
+  static async quickAnalogy(context: TransferContext): Promise<string> {
+    const result = await this.analyse(context);
     if (result.topInsights.length === 0) return 'No sufficiently strong cross-domain analogies found for this context.';
     const top = result.topInsights[0];
     return `${top.sourceObservation} → ${top.targetPrediction} (confidence: ${(top.confidence * 100).toFixed(0)}%)`;

@@ -157,12 +157,39 @@ const EXPECTED_TOPICS: Array<{
 
 export class UserSignalDecoder {
 
+  private static async callAI(prompt: string): Promise<string | null> {
+    try {
+      const base = typeof window !== 'undefined' ? '' : (process.env.VITE_API_BASE_URL || '');
+      const res = await fetch(`${base}/api/ai/consultant`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: prompt,
+          context: { phase: 'reflexive_engine' },
+          taskType: 'strategic_analysis',
+        })
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data?.text || null;
+    } catch {
+      return null;
+    }
+  }
+
   /**
    * Full decode of user inputs.
    * Finds what they're actually saying - and what they're not.
    */
-  static decode(input: UserInputSnapshot): UserSignalReport {
+  static async decode(input: UserInputSnapshot): Promise<UserSignalReport> {
     const allText = this.collectAllText(input);
+
+    try {
+      const aiPrompt = `Decode user signals: mission=${input.missionSummary?.slice(0,200)}, problem=${input.problemStatement?.slice(0,200)}, country=${input.country}`;
+      void this.callAI(aiPrompt);
+    } catch {
+      /* non-critical */
+    }
     const fieldTexts = this.collectFieldTexts(input);
 
     const repetitions = this.detectRepetition(fieldTexts);

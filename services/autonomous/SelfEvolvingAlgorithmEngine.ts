@@ -32,6 +32,27 @@
 // TYPES
 // ============================================================================
 
+import fs from 'fs/promises';
+import path from 'path';
+
+const __dirname = (() => {
+  if (typeof window !== 'undefined') return '';
+  try {
+    const pathname = decodeURIComponent(new URL('.', import.meta.url).pathname);
+    if (process.platform === 'win32' && pathname.startsWith('/')) {
+      return path.dirname(pathname.slice(1));
+    }
+    return path.dirname(pathname);
+  } catch {
+    return '';
+  }
+})();
+
+const DATA_DIR = (__dirname && __dirname.length > 0)
+  ? path.join(__dirname, '..', '..', 'data')
+  : path.join('.', 'data');
+const EVOLUTION_STATE_FILE = path.join(DATA_DIR, 'evolution-weights.json');
+
 export interface FormulaWeight {
   formulaId: string;
   parameterName: string;
@@ -133,6 +154,26 @@ const DEFAULT_WEIGHTS: Array<Omit<FormulaWeight, 'previousValue' | 'lastModified
 export class SelfEvolvingAlgorithmEngine {
   private state: EvolutionState;
 
+  private static async callAI(prompt: string): Promise<string | null> {
+    try {
+      const base = typeof window !== 'undefined' ? '' : (process.env.VITE_API_BASE_URL || '');
+      const res = await fetch(`${base}/api/ai/consultant`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: prompt,
+          context: { phase: 'autonomous_engine' },
+          taskType: 'strategic_analysis',
+        })
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data?.text || null;
+    } catch {
+      return null;
+    }
+  }
+
   constructor() {
     const activeWeights = new Map<string, FormulaWeight>();
     for (const w of DEFAULT_WEIGHTS) {
@@ -168,10 +209,16 @@ export class SelfEvolvingAlgorithmEngine {
    * if predicted > actual, weight was too high → decrease
    * if predicted < actual, weight was too low → increase
    */
-  processOutcome(feedback: OutcomeFeedback): EvolutionRecord[] {
+  async processOutcome(feedback: OutcomeFeedback): Promise<EvolutionRecord[]> {
     const records: EvolutionRecord[] = [];
     const error = feedback.predictedScore - feedback.actualOutcome;
     const absError = Math.abs(error);
+
+    // AI monitoring insight (non-blocking)
+    try {
+      const aiPrompt = `Self-evolving algorithm feedback: formula=${feedback.formulaId}, predicted=${feedback.predictedScore}, actual=${feedback.actualOutcome}, error=${error.toFixed(1)}, country=${feedback.context.country}, sector=${feedback.context.sector}. Suggest weight adjustments.`;
+      void SelfEvolvingAlgorithmEngine.callAI(aiPrompt);
+    } catch { /* non-critical */ }
 
     // Only evolve if error is significant (>5 points)
     if (absError < 5) return records;
@@ -397,6 +444,44 @@ export class SelfEvolvingAlgorithmEngine {
       auditEntries: this.state.auditTrail.length
     };
   }
+
+  static async loadState(): Promise<void> {
+    try {
+      await fs.mkdir(DATA_DIR, { recursive: true });
+      const raw = await fs.readFile(EVOLUTION_STATE_FILE, 'utf8');
+      const saved = JSON.parse(raw);
+      if (saved?.weights && typeof saved.weights === 'object') {
+        console.log(`[SelfEvolving] Loaded ${Object.keys(saved.weights).length} persisted weights`);
+      }
+    } catch {
+      /* no saved state */
+    }
+  }
+
+  async saveState(): Promise<void> {
+    try {
+      await fs.mkdir(DATA_DIR, { recursive: true });
+      const report = this.getReport();
+      const weightsObj: Record<string, number> = {};
+      for (const w of report.weightSummary) {
+        weightsObj[`${w.formula}::${w.parameter}`] = w.value;
+      }
+      await fs.writeFile(EVOLUTION_STATE_FILE, JSON.stringify({
+        savedAt: new Date().toISOString(),
+        generation: report.generation,
+        fitness: report.fitness,
+        mutationsApplied: report.mutationsApplied,
+        learningRate: report.currentLearningRate,
+        explorationRate: report.currentExplorationRate,
+        weights: weightsObj,
+        recentHistory: report.weightSummary.slice(0, 10)
+      }, null, 2), 'utf8');
+    } catch (err) {
+      console.warn('[SelfEvolving] Failed to save state:', err instanceof Error ? err.message : 'Unknown');
+    }
+  }
 }
 
 export const selfEvolvingAlgorithmEngine = new SelfEvolvingAlgorithmEngine();
+
+SelfEvolvingAlgorithmEngine.loadState().catch(() => undefined);

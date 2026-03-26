@@ -213,6 +213,26 @@ const SYSTEM_KNOWLEDGE_ANCHORS: Array<{
 
 export class InternalEchoDetector {
 
+  private static async callAI(prompt: string): Promise<string | null> {
+    try {
+      const base = typeof window !== 'undefined' ? '' : (process.env.VITE_API_BASE_URL || '');
+      const res = await fetch(`${base}/api/ai/consultant`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: prompt,
+          context: { phase: 'reflexive_engine' },
+          taskType: 'strategic_analysis',
+        })
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data?.text || null;
+    } catch {
+      return null;
+    }
+  }
+
   /**
    * Full cross-reference analysis.
    * Finds connections the user missed within their own inputs.
@@ -235,6 +255,33 @@ export class InternalEchoDetector {
       connectionsMissed,
       timestamp: new Date().toISOString()
     };
+  }
+
+  static async detectAsync(input: UserInputSnapshot): Promise<EchoReport> {
+    const report = this.detect(input);
+
+    try {
+      const prompt = `Please identify any hidden user signal pattern in these fields:\n` +
+        `mission:${input.missionSummary}\nproblem:${input.problemStatement}\ncontext:${input.additionalContext}\n`;
+      const aiText = await this.callAI(prompt);
+
+      if (aiText) {
+        report.knowledgeEchoes = report.knowledgeEchoes.slice(0, 7);
+        report.knowledgeEchoes.push({
+          userField: 'ai-insight',
+          userContent: aiText.slice(0, 200),
+          matchedPattern: 'AI-enhanced reflexive insight',
+          knowledgeSource: 'LLM Call',
+          insight: aiText,
+          confidenceBoost: 10
+        });
+        report.selfAnswerScore = Math.min(100, report.selfAnswerScore + 5);
+      }
+    } catch {
+      // Non-critical, return the default deterministic result
+    }
+
+    return report;
   }
 
   private static collectFields(input: UserInputSnapshot): Record<string, string> {

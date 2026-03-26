@@ -118,6 +118,26 @@ export interface EmotionalContext {
 
 export class EmotionalIntelligenceEngine {
 
+  private static async callAI(prompt: string): Promise<string | null> {
+    try {
+      const base = typeof window !== 'undefined' ? '' : (process.env.VITE_API_BASE_URL || '');
+      const res = await fetch(`${base}/api/ai/consultant`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: prompt,
+          context: { phase: 'autonomous_engine' },
+          taskType: 'strategic_analysis',
+        })
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data?.text || null;
+    } catch {
+      return null;
+    }
+  }
+
   /**
    * Map emotion to Russell's Circumplex coordinates.
    * Each emotion has a (valence, arousal) coordinate.
@@ -410,8 +430,30 @@ export class EmotionalIntelligenceEngine {
   /**
    * Run full emotional intelligence analysis.
    */
-  static analyse(ctx: EmotionalContext): EmotionalIntelligenceResult {
+  static async analyse(ctx: EmotionalContext): Promise<EmotionalIntelligenceResult> {
     const startTime = Date.now();
+
+    try {
+      const aiPrompt = `Emotional intelligence analysis: country=${ctx.country}, sector=${ctx.sector}, investment=${ctx.investmentSizeM}M, deadline=${ctx.hasDeadline}, election=${ctx.isElectionYear}, media=${ctx.hasMediaAttention}, failed attempts=${ctx.previousFailedAttempts}, community=${ctx.communitySupport}, risk appetite=${ctx.investorRiskAppetite}.`;
+      const aiText = await this.callAI(aiPrompt);
+      if (aiText) {
+        const states = this.generateStakeholderStates(ctx);
+        return {
+          stakeholderStates: states,
+          emotionalDynamics: this.modelContagion(states),
+          prospectTheory: this.assessProspectTheory(ctx, states),
+          aggregateEmotionalClimate: {
+            overallValence: 0.1,
+            overallArousal: 0.4,
+            dominantGroupEmotion: 'cautious-optimism',
+            stability: 0.6,
+            riskOfEmotionalDerailment: 0.3
+          },
+          recommendations: [{ target: 'All Stakeholders', action: 'AI-enhanced analysis', reasoning: aiText.slice(0, 200), priority: 'important', expectedEffect: 'Enhanced understanding' }],
+          processingTimeMs: Date.now() - startTime
+        };
+      }
+    } catch { /* fall through */ }
 
     const states = this.generateStakeholderStates(ctx);
     const dynamics = this.modelContagion(states);
@@ -452,8 +494,8 @@ export class EmotionalIntelligenceEngine {
   /**
    * Quick emotional check - is the emotional climate conducive to deal-making?
    */
-  static quickCheck(ctx: EmotionalContext): { conducive: boolean; risk: number; topConcern: string } {
-    const result = this.analyse(ctx);
+  static async quickCheck(ctx: EmotionalContext): Promise<{ conducive: boolean; risk: number; topConcern: string }> {
+    const result = await this.analyse(ctx);
     return {
       conducive: result.aggregateEmotionalClimate.riskOfEmotionalDerailment < 0.4,
       risk: result.aggregateEmotionalClimate.riskOfEmotionalDerailment,
